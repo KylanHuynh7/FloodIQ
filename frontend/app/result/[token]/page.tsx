@@ -12,6 +12,7 @@ import {
 import { DownloadIcon, InfoIcon, PinIcon, WarnIcon } from "@/components/icons";
 import { ConfirmationMap } from "@/components/ConfirmationMap";
 import { DistHistogram } from "@/components/DistHistogram";
+import { apiUrl } from "@/lib/api";
 
 export default function ResultPage() {
   const { token } = useParams<{ token: string }>();
@@ -20,7 +21,7 @@ export default function ResultPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/result/${token}`)
+    fetch(apiUrl(`/api/result/${token}`))
       .then(async (r) => {
         const text = await r.text();
         let body: FloodScoreResponse | { detail?: string; error?: string } | null =
@@ -156,7 +157,7 @@ export default function ResultPage() {
 
       {/* PDF CTA */}
       <a
-        href={`/report/${data.score_id}.pdf`}
+        href={apiUrl(`/report/${data.score_id}.pdf`)}
         className="mx-5 mt-6 flex items-center justify-between bg-ink px-4 py-4 text-surface no-underline lg:mx-12 lg:mt-10 lg:px-6 lg:py-5"
       >
         <div>

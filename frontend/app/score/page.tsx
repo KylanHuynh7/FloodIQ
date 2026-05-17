@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { apiUrl } from "@/lib/api";
 
 type Step = "pending" | "running" | "done";
 
@@ -38,7 +39,7 @@ function ScoringInner() {
       );
     };
 
-    fetch("/api/score", {
+    fetch(apiUrl("/api/score"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address }),

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import secrets
 
 from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -40,6 +42,26 @@ app = FastAPI(
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# CORS — needed because the public deployment splits frontend (Vercel) and
+# backend (a tunnel to localhost). Browsers call /api/* on the tunnel
+# directly; without CORS the browser blocks the response.
+# Default to localhost dev origin; production sets the comma-separated list
+# via FLOODIQ_ALLOWED_ORIGINS.
+_default_origins = "http://localhost:3000"
+_allowed_origins = [
+    o.strip()
+    for o in os.environ.get("FLOODIQ_ALLOWED_ORIGINS", _default_origins).split(",")
+    if o.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+    max_age=86400,
+)
 
 
 @app.middleware("http")
