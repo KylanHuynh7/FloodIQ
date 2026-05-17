@@ -8,3 +8,9 @@ data/noaa_slr/*.zip
 data/census_tracts/tract_centroids.tsv
 *.egg-info/
 .DS_Store
+
+# Playwright MCP test artifacts
+.playwright-mcp/
+
+# Root-level screenshot artifacts from dev/test
+/*.png

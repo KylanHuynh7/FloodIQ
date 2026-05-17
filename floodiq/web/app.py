@@ -135,6 +135,20 @@ def api_score(request: Request, payload: dict) -> JSONResponse:
     return JSONResponse(body)
 
 
+@app.get("/api/result/{token}")
+@limiter.limit("60/minute")
+def api_result(request: Request, token: str) -> JSONResponse:
+    if not _is_valid_token(token):
+        raise HTTPException(status_code=404, detail="result not found")
+    with open_store() as conn:
+        stored = get_score(conn, token)
+    if not stored:
+        raise HTTPException(status_code=404, detail="result not found")
+    body = dict(stored["payload"])
+    body["score_id"] = token
+    return JSONResponse(body)
+
+
 @app.get("/result/{token}", response_class=HTMLResponse)
 @limiter.limit("60/minute")
 def get_result(request: Request, token: str) -> str:
