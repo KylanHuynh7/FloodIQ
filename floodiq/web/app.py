@@ -4,15 +4,26 @@ from __future__ import annotations
 
 import html
 import json
+import secrets
 
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from floodiq import METHODOLOGY_VERSION
 from floodiq.cache.store import get_score, open_store, record_score
 from floodiq.pipeline import ScoreReport, score_address
 from floodiq.report.disclaimers import DISCLAIMER_BULLETS
 from floodiq.report.pdf import build_pdf
+
+
+# Hard caps. Address length is bounded so a misbehaving client can't push
+# arbitrarily large strings into upstream APIs or the cache DB. The body
+# cap covers the same concern at the transport layer (form posts, JSON).
+MAX_ADDRESS_LEN = 200
+MAX_REQUEST_BYTES = 4096
 
 
 # Disable FastAPI's auto-generated /docs, /redoc, and /openapi.json. These
@@ -26,6 +37,50 @@ app = FastAPI(
 )
 
 
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def _limit_body_size(request: Request, call_next):
+    if request.method in ("POST", "PUT", "PATCH"):
+        cl = request.headers.get("content-length")
+        if cl is not None:
+            try:
+                if int(cl) > MAX_REQUEST_BYTES:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": "request body too large"},
+                    )
+            except ValueError:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "invalid content-length"},
+                )
+    return await call_next(request)
+
+
+# Baseline CSP applied to every response. The loading endpoint overrides
+# it with a per-request nonce because it ships an inline <script>.
+_DEFAULT_CSP = (
+    "default-src 'self'; script-src 'self'; "
+    "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+    "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
+    "form-action 'self'"
+)
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Content-Security-Policy", _DEFAULT_CSP)
+    return response
+
+
 def _js_string(s: str) -> str:
     """Encode a Python string for safe embedding inside an HTML <script>
     tag's JS string literal. Escapes both JSON-string special chars and
@@ -34,24 +89,31 @@ def _js_string(s: str) -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-def index() -> str:
+@limiter.limit("60/minute")
+def index(request: Request) -> str:
     return _render_form()
 
 
 @app.post("/score", response_class=HTMLResponse)
-def post_score(address: str = Form(...)) -> str:
+@limiter.limit("10/minute")
+def post_score(request: Request, address: str = Form(...)):
     # The actual scoring may take up to ~3 minutes the very first time
     # FloodIQ encounters a new county (Section 6 seed fill). We respond
     # immediately with a loading shell that drives the slow call from
     # the browser via /api/score and redirects to /result/{id} when done.
+    if len(address) > MAX_ADDRESS_LEN:
+        return _render_form(error="Address is too long.")
     return _render_loading(address)
 
 
 @app.post("/api/score")
-def api_score(payload: dict) -> JSONResponse:
+@limiter.limit("10/minute")
+def api_score(request: Request, payload: dict) -> JSONResponse:
     address = (payload or {}).get("address")
-    if not address:
+    if not address or not isinstance(address, str):
         raise HTTPException(status_code=400, detail="address is required")
+    if len(address) > MAX_ADDRESS_LEN:
+        raise HTTPException(status_code=400, detail="address too long")
     report = score_address(address)
     # Persist so a token is available for /result/{token} and /report/{token}.pdf.
     token: str | None = None
@@ -74,7 +136,8 @@ def api_score(payload: dict) -> JSONResponse:
 
 
 @app.get("/result/{token}", response_class=HTMLResponse)
-def get_result(token: str) -> str:
+@limiter.limit("60/minute")
+def get_result(request: Request, token: str) -> str:
     if not _is_valid_token(token):
         raise HTTPException(status_code=404, detail="result not found")
     with open_store() as conn:
@@ -95,7 +158,8 @@ def _is_valid_token(s: str) -> bool:
 
 
 @app.get("/report/{token}.pdf")
-def report_pdf(token: str) -> Response:
+@limiter.limit("30/minute")
+def report_pdf(request: Request, token: str) -> Response:
     if not _is_valid_token(token):
         raise HTTPException(status_code=404, detail="report not found")
     with open_store() as conn:
@@ -152,9 +216,12 @@ def _render_form(error: str | None = None) -> str:
 </html>"""
 
 
-def _render_loading(address: str) -> str:
+def _render_loading(address: str) -> HTMLResponse:
     safe_addr = html.escape(address)
-    return f"""<!doctype html>
+    # Per-request nonce so the inline <script> below can run under a
+    # strict CSP without enabling 'unsafe-inline' globally.
+    nonce = secrets.token_urlsafe(16)
+    body = f"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -186,7 +253,7 @@ def _render_loading(address: str) -> str:
   <p class="sub" id="sub">This usually takes a few seconds.</p>
   <p class="elapsed" id="elapsed">0s elapsed</p>
   <p><a href="/">Cancel</a></p>
-  <script>
+  <script nonce="{nonce}">
     const address = {_js_string(address)};
     const startedAt = Date.now();
     const msgEl = document.getElementById('msg');
@@ -244,6 +311,14 @@ def _render_loading(address: str) -> str:
   </script>
 </body>
 </html>"""
+    response = HTMLResponse(content=body)
+    response.headers["Content-Security-Policy"] = (
+        f"default-src 'self'; script-src 'self' 'nonce-{nonce}'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
+        "form-action 'self'"
+    )
+    return response
 
 
 def _render_result(report: ScoreReport, *, score_id: int) -> str:
