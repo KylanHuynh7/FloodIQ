@@ -47,17 +47,21 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS — needed because the public deployment splits frontend (Vercel) and
 # backend (a tunnel to localhost). Browsers call /api/* on the tunnel
 # directly; without CORS the browser blocks the response.
-# Default to localhost dev origin; production sets the comma-separated list
-# via FLOODIQ_ALLOWED_ORIGINS.
+# Configurable via:
+#   FLOODIQ_ALLOWED_ORIGINS  — comma-separated exact origins
+#   FLOODIQ_ALLOWED_ORIGIN_REGEX — single regex (Vercel preview deploys
+#                                  rotate URLs; regex catches them all)
 _default_origins = "http://localhost:3000"
 _allowed_origins = [
     o.strip()
     for o in os.environ.get("FLOODIQ_ALLOWED_ORIGINS", _default_origins).split(",")
     if o.strip()
 ]
+_allowed_origin_regex = os.environ.get("FLOODIQ_ALLOWED_ORIGIN_REGEX") or None
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=_allowed_origin_regex,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
     max_age=86400,
