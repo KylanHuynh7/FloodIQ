@@ -143,9 +143,13 @@ def score_address(
     *,
     now: datetime | None = None,
     persist: bool = True,
+    record_history: bool = True,
 ) -> ScoreReport:
     now = now or datetime.now(tz=timezone.utc)
     now_year = now.year
+
+    if not address.strip():
+        return _error_report(address, ADDRESS_NOT_FOUND_MESSAGE, now)
 
     try:
         with httpx.Client(timeout=45.0) as http:
@@ -267,7 +271,9 @@ def score_address(
         is_inland=is_inland,
         geocoder_match_is_approximate=geo.match_is_approximate,
         horizons=horizons,
-        summary_headline=_summary_headline(horizons, is_inland),
+        summary_headline=_summary_headline(
+            horizons, is_inland, noaa_region_covered
+        ),
         inland_note=(
             INLAND_NOTE_OUTSIDE_COVERAGE
             if is_inland and not noaa_region_covered
@@ -277,7 +283,10 @@ def score_address(
         ),
     )
 
-    if persist:
+    # Callers that persist the report themselves (the web API, which needs
+    # the returned token) pass record_history=False so the lookup isn't
+    # written twice and double-counted in the county baseline.
+    if persist and record_history:
         try:
             with open_store() as conn:
                 record_score(
@@ -295,7 +304,9 @@ def score_address(
 
 
 def _summary_headline(
-    horizons: dict[int, HorizonReport], is_inland: bool
+    horizons: dict[int, HorizonReport],
+    is_inland: bool,
+    noaa_region_covered: bool = False,
 ) -> str:
     s10 = horizons[10].composite_absolute
     s100 = horizons[100].composite_absolute
@@ -308,15 +319,19 @@ def _summary_headline(
     else:
         near = "Low near-term flood risk"
 
-    parts = [near]
     if is_inland:
-        # For inland properties the 10/30/100 spread is just FEMA weight
-        # rebalancing against NOAA=0; reporting a trajectory would imply
-        # a forward-looking signal we do not have (Section 9.3).
-        parts.append(
-            "inland property — 100-year score reflects FEMA signal only, "
-            "no NOAA-driven trend"
+        # No NOAA inundation at this point, so the 10/30/100 spread is just
+        # FEMA weight rebalancing against NOAA=0; reporting a trajectory
+        # would imply a forward-looking signal we do not have (Section 9.3).
+        where = (
+            "NOAA projects no sea-level-rise inundation at this location"
+            if noaa_region_covered
+            else "This location is outside NOAA's sea-level-rise coverage"
         )
+        sentences = [
+            f"{near}.",
+            f"{where}, so the longer-horizon scores rely on FEMA flood-zone data alone.",
+        ]
     else:
         rising = s100 - s10
         if rising >= 20:
@@ -327,11 +342,13 @@ def _summary_headline(
             trend = "decreasing over 100 years"
         else:
             trend = "stable over 100 years"
-        parts.append(trend)
+        sentences = [f"{near}, {trend}."]
 
     if any_disagreement:
-        parts.append("FEMA and NOAA disagree — see source breakdown")
-    return "; ".join(parts) + "."
+        sentences.append(
+            "FEMA and NOAA disagree on this location; see the source breakdown."
+        )
+    return " ".join(sentences)
 
 
 def _error_report(

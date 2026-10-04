@@ -10,6 +10,7 @@ Docs: https://geocoding.geo.census.gov/geocoder/Geocoding_Services_API.pdf
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 import httpx
@@ -165,6 +166,18 @@ def geocode_with_fallback(
     if not primary.not_found:
         return primary
 
+    # Nominatim is forgiving to a fault: it will happily resolve "x" to a
+    # shop named X in San Francisco, or "10 Downing St, London" to a
+    # Downing Street in New Jersey. Only consult it for input that looks
+    # like a street address and names a state (or ZIP) we can check the
+    # match against.
+    if not _HOUSE_NUMBER_RE.search(address):
+        return primary
+    named_states = _states_named_in(address)
+    zips = _ZIP_RE.findall(address)
+    if not named_states and not zips:
+        return primary
+
     # Census missed — try Nominatim. Local import keeps the dependency
     # graph tight (callers that don't want OSM never hit this path).
     from floodiq.sources.nominatim import geocode_osm
@@ -183,6 +196,10 @@ def geocode_with_fallback(
         return primary
     if rev.not_found or not rev.county_fips:
         return primary
+    if named_states and rev.state_fips not in named_states:
+        return primary
+    if not named_states and not any(z in osm.display_name for z in zips):
+        return primary
 
     return GeocodeResult(
         matched_address=osm.display_name,
@@ -196,3 +213,50 @@ def geocode_with_fallback(
         match_is_approximate=True,
         not_found=False,
     )
+
+
+_HOUSE_NUMBER_RE = re.compile(r"\b\d+[A-Za-z]?\b")
+_ZIP_RE = re.compile(r"\b(\d{5})(?:-\d{4})?\b")
+
+# State name / USPS abbreviation -> 2-digit state FIPS.
+_STATE_FIPS = {
+    "AL": "01", "ALABAMA": "01", "AK": "02", "ALASKA": "02",
+    "AZ": "04", "ARIZONA": "04", "AR": "05", "ARKANSAS": "05",
+    "CA": "06", "CALIFORNIA": "06", "CO": "08", "COLORADO": "08",
+    "CT": "09", "CONNECTICUT": "09", "DE": "10", "DELAWARE": "10",
+    "DC": "11", "DISTRICT OF COLUMBIA": "11", "FL": "12", "FLORIDA": "12",
+    "GA": "13", "GEORGIA": "13", "HI": "15", "HAWAII": "15",
+    "ID": "16", "IDAHO": "16", "IL": "17", "ILLINOIS": "17",
+    "IN": "18", "INDIANA": "18", "IA": "19", "IOWA": "19",
+    "KS": "20", "KANSAS": "20", "KY": "21", "KENTUCKY": "21",
+    "LA": "22", "LOUISIANA": "22", "ME": "23", "MAINE": "23",
+    "MD": "24", "MARYLAND": "24", "MA": "25", "MASSACHUSETTS": "25",
+    "MI": "26", "MICHIGAN": "26", "MN": "27", "MINNESOTA": "27",
+    "MS": "28", "MISSISSIPPI": "28", "MO": "29", "MISSOURI": "29",
+    "MT": "30", "MONTANA": "30", "NE": "31", "NEBRASKA": "31",
+    "NV": "32", "NEVADA": "32", "NH": "33", "NEW HAMPSHIRE": "33",
+    "NJ": "34", "NEW JERSEY": "34", "NM": "35", "NEW MEXICO": "35",
+    "NY": "36", "NEW YORK": "36", "NC": "37", "NORTH CAROLINA": "37",
+    "ND": "38", "NORTH DAKOTA": "38", "OH": "39", "OHIO": "39",
+    "OK": "40", "OKLAHOMA": "40", "OR": "41", "OREGON": "41",
+    "PA": "42", "PENNSYLVANIA": "42", "RI": "44", "RHODE ISLAND": "44",
+    "SC": "45", "SOUTH CAROLINA": "45", "SD": "46", "SOUTH DAKOTA": "46",
+    "TN": "47", "TENNESSEE": "47", "TX": "48", "TEXAS": "48",
+    "UT": "49", "UTAH": "49", "VT": "50", "VERMONT": "50",
+    "VA": "51", "VIRGINIA": "51", "WA": "53", "WASHINGTON": "53",
+    "WV": "54", "WEST VIRGINIA": "54", "WI": "55", "WISCONSIN": "55",
+    "WY": "56", "WYOMING": "56", "PR": "72", "PUERTO RICO": "72",
+}
+_STATE_RE = re.compile(
+    r"\b("
+    + "|".join(sorted((re.escape(k) for k in _STATE_FIPS), key=len, reverse=True))
+    + r")\b",
+    re.IGNORECASE,
+)
+
+
+def _states_named_in(address: str) -> set[str]:
+    """State FIPS codes for every state name or abbreviation in `address`.
+    Over-matching (e.g. "IN" inside a street name) only widens what we
+    accept, so it never wrongly rejects a real address."""
+    return {_STATE_FIPS[m.upper()] for m in _STATE_RE.findall(address)}

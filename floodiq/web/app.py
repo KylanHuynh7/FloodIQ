@@ -140,7 +140,8 @@ def api_score(request: Request, payload: dict) -> JSONResponse:
         raise HTTPException(status_code=400, detail="address is required")
     if len(address) > MAX_ADDRESS_LEN:
         raise HTTPException(status_code=400, detail="address too long")
-    report = score_address(address)
+    # This endpoint records the score itself (below) to get the result token.
+    report = score_address(address, record_history=False)
     # Persist so a token is available for /result/{token} and /report/{token}.pdf.
     token: str | None = None
     if not report.error:
