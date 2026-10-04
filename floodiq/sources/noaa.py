@@ -29,6 +29,20 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import ctypes as _ctypes
+import os as _os
+import sys as _sys
+
+# Vercel's Python runtime lacks libexpat, which rasterio's bundled GDAL
+# links against (see floodiq/_vendor/README.md). Load the vendored copy
+# globally first so the dynamic linker resolves GDAL's dependency to it.
+_VENDORED_EXPAT = _os.path.join(_os.path.dirname(__file__), "..", "_vendor", "libexpat.so.1")
+if _sys.platform.startswith("linux") and _os.path.exists(_VENDORED_EXPAT):
+    try:
+        _ctypes.CDLL("libexpat.so.1")  # prefer the system copy when present
+    except OSError:
+        _ctypes.CDLL(_os.path.abspath(_VENDORED_EXPAT), mode=_ctypes.RTLD_GLOBAL)
+
 import rasterio
 from rasterio.errors import RasterioIOError
 from rasterio.windows import Window

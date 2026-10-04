@@ -39,7 +39,21 @@ app = FastAPI(
 )
 
 
-limiter = Limiter(key_func=get_remote_address)
+def _client_ip(request: Request) -> str:
+    """Rate-limit key. On Vercel every request reaches the function from
+    Vercel's edge, so the socket address is not the visitor; the edge sets
+    x-real-ip to the actual client (and overwrites any client-supplied
+    value), so it is trustworthy there. Elsewhere, use the socket address."""
+    if os.environ.get("VERCEL") == "1":
+        real = request.headers.get("x-real-ip")
+        if real:
+            return real
+    return get_remote_address(request)
+
+
+# Limits are per process. On serverless they apply per warm instance, so
+# they are a best-effort brake rather than a hard global cap.
+limiter = Limiter(key_func=_client_ip)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
