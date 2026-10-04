@@ -45,7 +45,17 @@ export type HorizonScore = {
   confidence_label: ConfidenceLevel;
   confidence_drivers: string[];
   disagreement: number;
+  // Share of the county reference set tied with this score (0-1). Absent
+  // on results saved before it was added.
+  county_tie_share?: number | null;
 };
+
+// METHODOLOGY.md Section 6: when most of the county shares this exact
+// score, the percentile is pinned near 50 by ties and isn't meaningful.
+export const TYPICAL_TIE_SHARE = 0.5;
+export function isTypicalForCounty(h: HorizonScore): boolean {
+  return h.county_tie_share != null && h.county_tie_share >= TYPICAL_TIE_SHARE;
+}
 
 export type FloodScoreResponse = {
   methodology_version: string;

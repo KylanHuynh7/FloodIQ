@@ -66,7 +66,7 @@ export default function ResultPage() {
         <section className="contours border-b border-ink/10">
           <div className="mx-auto grid w-full max-w-[1160px] gap-8 px-4 pt-8 pb-10 sm:px-6 sm:pt-12 lg:grid-cols-12 lg:gap-10">
             <div className="rise flex min-w-0 flex-col lg:col-span-6">
-              <Kicker>Flood risk report · {scoredOn}</Kicker>
+              <Kicker>Flood risk report, {scoredOn}</Kicker>
               <h1 className="mt-4 break-words font-display text-[28px] font-bold leading-[1.08] tracking-[-0.9px] text-ink text-balance sm:text-[38px] sm:tracking-[-1.3px]">
                 {data.matched_address}
               </h1>
@@ -103,7 +103,7 @@ export default function ResultPage() {
               >
                 <div>
                   <div className="text-[15px] font-semibold">Download the full report</div>
-                  <div className="font-mono text-[11.5px] text-white/60">PDF · 3 pages · sources and disclaimers</div>
+                  <div className="text-[13px] text-white/60">3-page PDF with sources and disclaimers</div>
                 </div>
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-signal text-ink transition-transform group-hover:translate-y-0.5">
                   <DownloadIcon size={16} />
@@ -124,11 +124,16 @@ export default function ResultPage() {
               <div>
                 <Kicker>Risk over time</Kicker>
                 <h2 className="mt-3 font-display text-[26px] font-bold tracking-[-0.7px] text-ink sm:text-[30px]">
-                  Three horizons, one county
+                  How this home compares over time
                 </h2>
               </div>
             </div>
-            <HorizonExplorer horizons={horizons} scoredAt={data.scored_at} countyName={data.county_name} />
+            <HorizonExplorer
+              horizons={horizons}
+              scoredAt={data.scored_at}
+              countyName={data.county_name}
+              femaZone={data.fema_zone_raw}
+            />
           </section>
 
           {/* Sources + how to read */}
@@ -171,8 +176,10 @@ export default function ResultPage() {
               <h2 className="font-display text-[17px] font-bold text-ink">How to read this report</h2>
               <div className="mt-2 divide-y divide-ink/10 border-y border-ink/15">
                 <Explainer title="County percentile">
-                  Ranks this address against sampled residential locations in {data.county_name}. The
-                  50th percentile is the county median.
+                  Ranks this address against locations we sampled across {data.county_name}. The
+                  50th percentile is the middle of the county. When most of the county scores
+                  exactly the same, we say &ldquo;typical for this county&rdquo; instead, because a
+                  ranking among identical scores doesn&apos;t mean much.
                 </Explainer>
                 <Explainer title="Confidence">
                   Drops when FEMA and NOAA disagree, when maps are old, or when the address could only be
@@ -206,7 +213,7 @@ function Tag({ children, tone }: { children: React.ReactNode; tone?: "ink" | "si
         ? "border-ink bg-signal text-ink"
         : "border-ink/25 bg-surface text-ink-2";
   return (
-    <span className={`inline-flex items-center border px-2 py-1 font-mono text-[11px] leading-none ${cls}`}>
+    <span className={`inline-flex items-center border px-2.5 py-1 text-[12.5px] font-medium leading-tight ${cls}`}>
       {children}
     </span>
   );
@@ -232,7 +239,7 @@ function Explainer({ title, children }: { title: string; children: React.ReactNo
 function SourceRow({ label, value, flag, mono }: { label: string; value: string; flag?: string; mono?: boolean }) {
   return (
     <div className="grid gap-1 px-5 py-3.5 transition-colors hover:bg-surface-2/60 sm:grid-cols-[170px_1fr] sm:gap-4 sm:px-6">
-      <dt className="font-mono text-[11.5px] uppercase tracking-[0.08em] text-ink-3 sm:pt-0.5">{label}</dt>
+      <dt className="text-[13.5px] text-ink-3">{label}</dt>
       <dd className="min-w-0 break-words text-[14.5px] text-ink">
         <span className={mono ? "font-mono text-[13px]" : undefined}>{value}</span>
         {flag && <div className="mt-0.5 text-[12.5px] text-warn">{flag}</div>}

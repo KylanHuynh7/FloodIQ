@@ -35,7 +35,7 @@ export default function LandingPage() {
         <section className="contours relative border-b border-ink/10">
           <div className="mx-auto grid w-full max-w-[1160px] gap-12 px-4 pt-10 pb-14 sm:px-6 sm:pt-14 lg:grid-cols-12 lg:gap-14 lg:pt-20 lg:pb-24">
             <div className="lg:col-span-7">
-              <Kicker className="rise">Flood exposure · ranked locally</Kicker>
+              <Kicker className="rise">Flood risk for any U.S. home</Kicker>
               <h1
                 className="rise mt-5 font-display text-[38px] font-bold leading-[1.02] tracking-[-1.5px] text-ink text-balance sm:text-[52px] lg:text-[64px] lg:tracking-[-2.5px]"
                 style={{ animationDelay: "60ms" }}
@@ -65,7 +65,7 @@ export default function LandingPage() {
                   local baseline and can take up to a minute.
                 </p>
                 <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px]">
-                  <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-4">Try</span>
+                  <span className="text-ink-3">Try one:</span>
                   {EXAMPLES.map((ex) => (
                     <a
                       key={ex.address}
@@ -91,7 +91,7 @@ export default function LandingPage() {
             <div className="lg:col-span-4">
               <Kicker>How it works</Kicker>
               <h2 className="mt-4 font-display text-[28px] font-bold leading-[1.1] tracking-[-0.8px] text-ink sm:text-[34px]">
-                Two federal datasets. One honest number.
+                Two federal datasets. One straight answer.
               </h2>
               <p className="mt-4 text-[15px] leading-[1.6] text-ink-3">
                 Every score ships with a confidence label, because old maps and
@@ -104,7 +104,7 @@ export default function LandingPage() {
                   key={s.n}
                   className="group border-b border-ink/15 py-6 transition-colors sm:border-b-0 sm:px-5 sm:first:pl-0 sm:[&:not(:first-child)]:border-l sm:[&:not(:first-child)]:border-ink/15"
                 >
-                  <div className="font-mono text-[12px] text-ink-4 transition-colors group-hover:text-accent">
+                  <div className="font-display text-[30px] font-extrabold leading-none text-ink/15 transition-colors group-hover:text-signal">
                     {s.n}
                   </div>
                   <h3 className="mt-3 font-display text-[20px] font-bold tracking-[-0.3px] text-ink">

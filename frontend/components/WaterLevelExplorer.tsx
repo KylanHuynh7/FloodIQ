@@ -37,12 +37,10 @@ export function WaterLevelExplorer() {
   return (
     <figure className="border-[1.5px] border-ink bg-surface shadow-[6px_6px_0_0_#0f2430]">
       <div className="flex items-center justify-between border-b border-ink/15 px-4 py-2.5">
-        <figcaption className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-3">
-          Why three horizons
+        <figcaption className="text-[14px] font-semibold text-ink">
+          Watch the water rise
         </figcaption>
-        <span className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-4">
-          Illustration
-        </span>
+        <span className="text-[12px] italic text-ink-4">Illustration</span>
       </div>
 
       <div className="relative overflow-hidden">
@@ -64,7 +62,7 @@ export function WaterLevelExplorer() {
           <rect width={W} height={H} fill="url(#wl-sky)" />
 
           {/* depth ruler */}
-          <g fontFamily="var(--font-mono)" fontSize="9" fill="#87979f">
+          <g>
             {[130, 150, 170, 190, 210].map((y) => (
               <g key={y}>
                 <line x1={W - 18} x2={W - 8} y1={y} y2={y} stroke="#9caeb1" />
@@ -84,7 +82,7 @@ export function WaterLevelExplorer() {
               <path d={wave(196)} fill="url(#wl-water)" />
             </g>
             <line x1="0" x2={W} y1="196" y2="196" stroke="#f2b544" strokeWidth="1.5" strokeDasharray="5 4" />
-            <text x="10" y="190" fontFamily="var(--font-mono)" fontSize="10.5" fill="#0f2430" fontWeight="500">
+            <text x="10" y="189" fontFamily="var(--font-display)" fontSize="13" fill="#0f2430" fontWeight="700">
               {year + level.h}
             </text>
           </g>
@@ -127,8 +125,8 @@ export function WaterLevelExplorer() {
                   active ? "bg-ink text-white" : "bg-surface text-ink hover:bg-surface-2"
                 }`}
               >
-                <div className="font-display text-[15px] font-bold leading-none">+{l.h}y</div>
-                <div className={`mt-1 font-mono text-[10.5px] ${active ? "text-white/70" : "text-ink-4"}`}>
+                <div className="font-display text-[17px] font-bold leading-none">+{l.h} yrs</div>
+                <div className={`mt-1 text-[12px] ${active ? "text-white/70" : "text-ink-4"}`}>
                   {year + l.h}
                 </div>
                 {active && auto && (
@@ -143,7 +141,7 @@ export function WaterLevelExplorer() {
           })}
         </div>
         <p className="mt-3 min-h-[2.6em] text-[13.5px] leading-[1.45] text-ink-2" aria-live="polite">
-          {level.note} FloodIQ scores every address at all three horizons.
+          {level.note} FloodIQ checks every address at all three points in time.
         </p>
       </div>
       <style>{`@keyframes wl-progress { from { transform: scaleX(0) } to { transform: scaleX(1) } } @keyframes wl-drift { to { transform: translateX(-120px) } }`}</style>

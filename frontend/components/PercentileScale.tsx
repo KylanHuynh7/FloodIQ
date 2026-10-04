@@ -25,7 +25,7 @@ export function PercentileScale({
     >
       <div className="relative pt-7 pb-1">
         <div
-          className={`absolute top-0 -translate-x-1/2 bg-ink px-1.5 py-0.5 font-mono text-[10.5px] font-medium whitespace-nowrap text-white ${move}`}
+          className={`absolute top-0 -translate-x-1/2 bg-ink px-1.5 py-0.5 font-display text-[12px] font-bold whitespace-nowrap text-white ${move}`}
           style={{ left: `clamp(16px, ${p}%, calc(100% - 16px))` }}
         >
           {Math.round(p)}
@@ -60,10 +60,10 @@ export function PercentileScale({
         />
       </div>
 
-      <div className="mt-2 flex justify-between font-mono text-[10.5px] text-ink-4">
-        <span>0 · lower</span>
-        <span>50 · median</span>
-        <span>higher · 100</span>
+      <div className="mt-2 flex justify-between text-[12px] text-ink-4">
+        <span>Lower risk</span>
+        <span>County median</span>
+        <span>Higher risk</span>
       </div>
     </div>
   );

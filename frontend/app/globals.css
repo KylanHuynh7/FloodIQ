@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-plex-sans), system-ui, sans-serif;
-  --font-display: var(--font-grotesk), var(--font-plex-sans), system-ui, sans-serif;
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-figtree), system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
   /* Chart paper — a cool, faintly green-gray, like a survey sheet */

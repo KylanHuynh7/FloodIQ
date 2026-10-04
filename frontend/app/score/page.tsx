@@ -10,10 +10,10 @@ type Step = "pending" | "running" | "done";
 type ErrorKind = "notfound" | "unsupported" | "upstream" | "ratelimit" | "server";
 
 const STEPS = [
-  { label: "Locating address", detail: "U.S. Census geocoder" },
-  { label: "Reading FEMA flood map", detail: "National Flood Hazard Layer" },
-  { label: "Sampling sea-level projections", detail: "NOAA SLR 2022" },
-  { label: "Ranking against county", detail: "Percentile baseline" },
+  { label: "Finding the address", detail: "U.S. Census geocoder" },
+  { label: "Reading the FEMA flood map", detail: "National Flood Hazard Layer" },
+  { label: "Checking sea-level projections", detail: "NOAA sea-level rise, 2022" },
+  { label: "Comparing with the county", detail: "Local baseline" },
 ] as const;
 
 // Map backend responses to a user-facing error category. The backend
@@ -114,7 +114,7 @@ function ScoringInner() {
       />
       <main className="contours min-h-[calc(100vh-56px)]">
         <div className="mx-auto w-full max-w-[760px] px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
-          <Kicker>Scoring address</Kicker>
+          <Kicker>Checking this address</Kicker>
           <h1 className="mt-3 break-words font-display text-[26px] font-bold leading-[1.15] tracking-[-0.8px] text-ink sm:text-[34px]">
             {address || "—"}
           </h1>
@@ -190,8 +190,8 @@ function TideGauge({ fill, elapsed }: { fill: number; elapsed: number }) {
         ))}
       </div>
       <div className="relative z-10 p-4">
-        <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink-2">Elapsed</div>
-        <div className="font-mono text-[28px] font-medium leading-none tabular-nums text-ink">
+        <div className="text-[13px] font-semibold text-ink-2">Elapsed</div>
+        <div className="font-display text-[32px] font-bold leading-none tabular-nums text-ink">
           {mm}:{ss}
         </div>
       </div>
@@ -213,7 +213,7 @@ function StatusStep({
   return (
     <li className="flex items-center gap-4 py-4">
       <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center border-[1.5px] font-mono text-[11px] transition-colors ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center border-[1.5px] font-display text-[13px] font-bold transition-colors ${
           state === "done"
             ? "border-ink bg-ink text-white"
             : state === "running"
@@ -222,13 +222,13 @@ function StatusStep({
         }`}
         aria-hidden
       >
-        {state === "done" ? <CheckIcon size={13} /> : String(index + 1).padStart(2, "0")}
+        {state === "done" ? <CheckIcon size={13} /> : index + 1}
       </span>
       <div className="min-w-0 flex-1">
         <div className={`text-[15px] font-medium ${state === "pending" ? "text-ink-4" : "text-ink"}`}>
           {label}
         </div>
-        <div className="font-mono text-[11.5px] text-ink-4">{detail}</div>
+        <div className="text-[13px] text-ink-4">{detail}</div>
       </div>
       {state === "running" && (
         <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-signal" aria-hidden />

@@ -69,21 +69,21 @@ export function SiteFooter({ version = "1.1" }: { version?: string }) {
             flood assessment.
           </p>
         </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 font-mono text-[11.5px] md:col-span-5">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] md:col-span-5">
           <div>
-            <dt className="uppercase tracking-[0.12em] text-white/40">Hazard</dt>
+            <dt className="text-white/45">Hazard</dt>
             <dd className="text-white/80">FEMA NFHL</dd>
           </div>
           <div>
-            <dt className="uppercase tracking-[0.12em] text-white/40">Sea level</dt>
+            <dt className="text-white/45">Sea level</dt>
             <dd className="text-white/80">NOAA SLR 2022</dd>
           </div>
           <div>
-            <dt className="uppercase tracking-[0.12em] text-white/40">Geocoding</dt>
+            <dt className="text-white/45">Geocoding</dt>
             <dd className="text-white/80">U.S. Census · OSM</dd>
           </div>
           <div>
-            <dt className="uppercase tracking-[0.12em] text-white/40">Method</dt>
+            <dt className="text-white/45">Method</dt>
             <dd>
               <a
                 href={METHODOLOGY_URL}
@@ -163,13 +163,19 @@ export function AddressForm({
   );
 }
 
-// Small uppercase label used as a section marker.
+// Section marker: a little wave and a sentence-case label in the accent.
 export function Kicker({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className={`flex items-center gap-2 font-mono text-[11.5px] font-medium uppercase tracking-[0.14em] text-accent ${className}`}
-    >
-      <span className="h-px w-5 bg-accent" />
+    <div className={`flex items-center gap-2 text-[14px] font-semibold text-accent ${className}`}>
+      <svg width="18" height="8" viewBox="0 0 18 8" aria-hidden className="shrink-0">
+        <path
+          d="M1 4c2 0 2-2.5 4-2.5S7 4 9 4s2-2.5 4-2.5S15 4 17 4"
+          stroke="#f2b544"
+          strokeWidth="2"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
       {children}
     </div>
   );

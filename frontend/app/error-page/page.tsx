@@ -60,7 +60,7 @@ function ErrorInner() {
       <main className="contours border-b border-ink/10">
         <div className="mx-auto grid w-full max-w-[1160px] gap-10 px-4 pt-10 pb-14 sm:px-6 sm:pt-16 lg:grid-cols-12 lg:gap-14">
           <section className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 border-[1.5px] border-ink bg-signal px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-ink">
+            <div className="inline-flex items-center gap-2 border-[1.5px] border-ink bg-signal px-3 py-1 text-[13px] font-semibold text-ink">
               <WarnIcon size={13} />
               {copy.eyebrow}
             </div>
@@ -81,7 +81,7 @@ function ErrorInner() {
 
             {kind === "notfound" && (
               <div className="mt-8 border-[1.5px] border-ink bg-surface">
-                <h2 className="border-b border-ink/15 px-5 py-3 font-mono text-[11.5px] uppercase tracking-[0.14em] text-ink-3">
+                <h2 className="border-b border-ink/15 px-5 py-3 font-display text-[16px] font-bold text-ink">
                   Common causes
                 </h2>
                 <ul className="divide-y divide-ink/10">
@@ -105,7 +105,7 @@ function ErrorInner() {
                 Try again
               </a>
             )}
-            <div className="mb-2 font-mono text-[11.5px] uppercase tracking-[0.14em] text-ink-3">
+            <div className="mb-2 text-[14px] font-semibold text-ink-2">
               {copy.retry ? "Or try a different address" : "Try another address"}
             </div>
             <AddressForm label="Retry U.S. street address" />
