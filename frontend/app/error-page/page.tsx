@@ -1,133 +1,122 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
-import { ArrowIcon, WarnIcon } from "@/components/icons";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { AddressForm, SiteFooter, SiteHeader } from "@/components/chrome";
+import { WarnIcon } from "@/components/icons";
+
+type Kind = "notfound" | "unsupported" | "upstream" | "ratelimit" | "server";
+
+const COPY: Record<Kind, { eyebrow: string; title: string; retry: boolean }> = {
+  notfound: {
+    eyebrow: "Address not found",
+    title: "We couldn't match that address.",
+    retry: false,
+  },
+  unsupported: {
+    eyebrow: "Not covered",
+    title: "We can't score this location yet.",
+    retry: false,
+  },
+  upstream: {
+    eyebrow: "Data source unavailable",
+    title: "A federal data source didn't respond.",
+    retry: true,
+  },
+  ratelimit: {
+    eyebrow: "Too many requests",
+    title: "Slow down a moment.",
+    retry: true,
+  },
+  server: {
+    eyebrow: "Server error",
+    title: "Something went wrong on our end.",
+    retry: true,
+  },
+};
 
 const CAUSES: Array<[string, string]> = [
-  ["Apartments + units", "FloodIQ scores buildings, not unit numbers."],
-  ["PO boxes", "No geographic coordinates."],
-  ["Commercial properties", "Residential addresses only."],
-  ["Non-U.S. addresses", "FEMA data is U.S.-only."],
-  [
-    "Misspellings or missing details",
-    "Try including city + state.",
-  ],
+  ["Missing city or state", "Use the full form: 123 Main St, Charleston, SC 29401."],
+  ["Apartment or unit numbers", "FloodIQ scores buildings, so drop the unit."],
+  ["PO boxes", "They have no geographic location."],
+  ["Non-U.S. addresses", "FEMA and NOAA data cover the U.S. only."],
+  ["Very new construction", "It may not be in the Census address database yet."],
 ];
 
 function ErrorInner() {
-  const router = useRouter();
   const params = useSearchParams();
   const badInput = params.get("address") ?? "";
-  const reason = params.get("reason") ?? "didn't resolve to a U.S. residential address.";
-
-  const [addr, setAddr] = useState("");
-  const canSubmit = addr.trim().length > 4;
-
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!canSubmit) return;
-    router.push(`/score?address=${encodeURIComponent(addr.trim())}`);
-  }
+  const kindParam = params.get("kind") as Kind | null;
+  const kind: Kind = kindParam && kindParam in COPY ? kindParam : "notfound";
+  const reason =
+    kind === "ratelimit"
+      ? "You've made several lookups in the last minute. Wait about a minute, then try again."
+      : (params.get("reason") ?? "");
+  const copy = COPY[kind];
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[480px] bg-paper pb-12 lg:max-w-[1200px] lg:pb-24">
-      <header className="flex items-baseline justify-between px-5 pt-3 font-mono text-[11px] font-semibold tracking-[1.6px] text-ink lg:px-12 lg:pt-8 lg:text-[12px]">
-        <a href="/" className="text-ink">FLOODIQ</a>
-        <span className="text-[10px] font-medium text-ink-3 lg:text-[11px]">
-          METHOD V1.1
-        </span>
-      </header>
-
-      <div className="lg:grid lg:grid-cols-12 lg:gap-12 lg:px-12 lg:pt-16">
-        <section className="px-5 pt-10 lg:col-span-7 lg:px-0 lg:pt-0">
-          <div className="mb-3.5 flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[1.6px] text-signal lg:text-[11px] lg:tracking-[2px]">
-            <WarnIcon size={12} />
-            ADDRESS NOT FOUND
-          </div>
-          <h1 className="font-sans text-[30px] font-medium leading-[1.08] tracking-[-1.2px] text-ink text-balance lg:text-[48px] lg:tracking-[-2px]">
-            We couldn&apos;t match that address.
-          </h1>
-          {badInput && (
-            <p className="mt-3 font-sans text-[14px] leading-[1.5] text-ink-2 text-pretty lg:mt-5 lg:text-[16px]">
-              <span className="inline-block border border-line bg-surface px-1.5 py-0.5 font-mono text-[12px] text-ink lg:text-[13px]">
-                {badInput}
-              </span>{" "}
-              {reason}
-            </p>
-          )}
-
-          <section className="mt-6 border border-ink bg-surface px-4 py-4 lg:mt-8 lg:px-5 lg:py-5">
-            <div className="mb-2.5 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:text-[11px] lg:tracking-[1.6px]">
-              COMMON CAUSES
+    <div className="min-h-screen">
+      <SiteHeader />
+      <main className="contours border-b border-ink/10">
+        <div className="mx-auto grid w-full max-w-[1160px] gap-10 px-4 pt-10 pb-14 sm:px-6 sm:pt-16 lg:grid-cols-12 lg:gap-14">
+          <section className="lg:col-span-7">
+            <div className="inline-flex items-center gap-2 border-[1.5px] border-ink bg-signal px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-ink">
+              <WarnIcon size={13} />
+              {copy.eyebrow}
             </div>
-            <ul className="flex flex-col gap-1.5 font-sans text-[13px] leading-[1.55] text-ink-2 lg:gap-2 lg:text-[14px]">
-              {CAUSES.map(([k, v]) => (
-                <li key={k} className="grid grid-cols-[14px_1fr] gap-2">
-                  <span className="font-mono text-ink-3">·</span>
-                  <span>
-                    <b className="font-medium text-ink">{k}.</b>{" "}
-                    <span className="text-ink-3">{v}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <h1 className="mt-5 font-display text-[34px] font-bold leading-[1.05] tracking-[-1.2px] text-ink text-balance sm:text-[48px] sm:tracking-[-1.8px]">
+              {copy.title}
+            </h1>
+            {badInput && (
+              <p className="mt-5 text-[15px] text-ink-3">
+                You searched for{" "}
+                <span className="break-words border-b-2 border-signal font-medium text-ink">{badInput}</span>
+              </p>
+            )}
+            {reason && (
+              <p className="mt-3 max-w-[560px] text-[15px] leading-[1.6] text-ink-2 text-pretty">
+                {reason}
+              </p>
+            )}
+
+            {kind === "notfound" && (
+              <div className="mt-8 border-[1.5px] border-ink bg-surface">
+                <h2 className="border-b border-ink/15 px-5 py-3 font-mono text-[11.5px] uppercase tracking-[0.14em] text-ink-3">
+                  Common causes
+                </h2>
+                <ul className="divide-y divide-ink/10">
+                  {CAUSES.map(([k, v]) => (
+                    <li key={k} className="px-5 py-3 text-[14.5px] leading-[1.5]">
+                      <span className="font-medium text-ink">{k}.</span>{" "}
+                      <span className="text-ink-3">{v}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
-        </section>
 
-        <section className="px-5 pt-6 lg:col-span-5 lg:px-0 lg:pt-0">
-          <label
-            htmlFor="addr"
-            className="mb-1.5 block font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:text-[11px] lg:tracking-[1.6px]"
-          >
-            TRY ANOTHER ADDRESS
-          </label>
-          <form onSubmit={onSubmit} className="flex border border-ink bg-surface">
-            <input
-              id="addr"
-              name="address"
-              type="text"
-              value={addr}
-              onChange={(e) => setAddr(e.target.value)}
-              placeholder="123 Main St, Charleston, SC"
-              maxLength={200}
-              aria-label="Retry U.S. street address"
-              className="min-w-0 flex-1 border-none bg-transparent px-3.5 py-3.5 font-sans text-[15px] font-medium tracking-[-0.2px] text-ink outline-none placeholder:text-ink-3 lg:px-4 lg:py-4 lg:text-[16px]"
-            />
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className={`flex items-center gap-1.5 border-l border-ink px-4 font-mono text-[11px] font-semibold tracking-[1.2px] lg:px-5 lg:text-[12px] ${
-                canSubmit
-                  ? "cursor-pointer bg-ink text-surface"
-                  : "cursor-not-allowed bg-surface-alt text-ink-3"
-              }`}
-            >
-              SCORE <ArrowIcon size={13} />
-            </button>
-          </form>
-
-          <a
-            href="/"
-            className="mt-4 flex items-center justify-between border border-dashed border-line px-3.5 py-3 lg:mt-6 lg:px-5 lg:py-4"
-          >
-            <div className="font-sans text-[13px] font-medium text-ink lg:text-[15px]">
+          <section className="lg:col-span-5 lg:pt-14">
+            {copy.retry && badInput && (
+              <a
+                href={`/score?address=${encodeURIComponent(badInput)}`}
+                className="mb-6 flex h-[52px] items-center justify-center border-[1.5px] border-ink bg-ink text-[15px] font-semibold text-white transition hover:bg-accent-deep"
+              >
+                Try again
+              </a>
+            )}
+            <div className="mb-2 font-mono text-[11.5px] uppercase tracking-[0.14em] text-ink-3">
+              {copy.retry ? "Or try a different address" : "Try another address"}
+            </div>
+            <AddressForm label="Retry U.S. street address" />
+            <a href="/" className="mt-5 inline-flex min-h-[44px] items-center text-[14.5px] font-medium text-accent underline decoration-accent/30 underline-offset-4 hover:decoration-signal">
               ← Back to home
-            </div>
-            <div className="font-mono text-[10px] tracking-[0.3px] text-ink-3 lg:text-[11px]">
-              FLOODIQ /
-            </div>
-          </a>
-
-          <div className="mt-6 font-mono text-[10px] leading-[1.6] tracking-[0.4px] text-ink-3 lg:mt-8 lg:text-[11px]">
-            <div className="mb-1 font-semibold tracking-[1.2px] text-ink lg:tracking-[1.6px]">
-              SUPPORT
-            </div>
-            If you believe this address should score and doesn&apos;t, report it via the methodology page.
-          </div>
-        </section>
-      </div>
-    </main>
+            </a>
+          </section>
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
 
