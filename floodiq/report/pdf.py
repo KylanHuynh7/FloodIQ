@@ -155,7 +155,8 @@ def _page_2_sources(report, h1, h2, body):
                 "Coastal coverage applies to this address, but NOAA's "
                 "Intermediate-scenario inundation does not reach this point "
                 "at the horizons checked. NOAA component is 0 for all "
-                "horizons; the composite falls back to FEMA-only weighting.",
+                "horizons, so with the FEMA floor (Section 5) the composite "
+                "equals the FEMA score at every horizon.",
                 body,
             )
         )
@@ -164,10 +165,30 @@ def _page_2_sources(report, h1, h2, body):
             Paragraph(
                 "This address is outside FloodIQ's NOAA SLR coverage "
                 "(CONUS coastal states only). NOAA component = 0 for all "
-                "horizons; scoring is FEMA-only.",
+                "horizons; the composite equals the FEMA score at every "
+                "horizon (Section 5 floor).",
                 body,
             )
         )
+
+    claims = report.claims_history
+    if claims:
+        avg = claims.get("county_avg_per_tract")
+        out += [
+            Spacer(1, 0.15 * inch),
+            Paragraph("Flood insurance claims history (context only)", h2),
+            Paragraph(
+                f"NFIP claims since 1978 in Census tract {claims['tract_geoid']}: "
+                f"{claims['claims_in_tract']:,}, of which "
+                f"{claims['claims_outside_high_risk']:,} were on properties outside "
+                f"today's FEMA high-risk (A/V) zones"
+                + (f". County average: {avg:,.0f} per tract" if avg is not None else "")
+                + ". Only insured properties appear, so low counts can reflect few "
+                "policies rather than low risk. Not part of the score. "
+                "Source: OpenFEMA NFIP Redacted Claims v3.",
+                body,
+            ),
+        ]
 
     out += [
         Spacer(1, 0.15 * inch),

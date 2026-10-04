@@ -36,6 +36,8 @@ class GeocodeResult:
     match_is_approximate: bool
     # Set when no match was found at all. All other fields are empty/zero.
     not_found: bool = False
+    # 11-digit Census tract GEOID (state+county+tract); "" if unavailable.
+    tract_geoid: str = ""
 
 
 def geocode(address: str, *, client: httpx.Client | None = None) -> GeocodeResult:
@@ -93,7 +95,14 @@ def geocode(address: str, *, client: httpx.Client | None = None) -> GeocodeResul
         county_fips=county_fips,
         county_name=county.get("NAME", ""),
         match_is_approximate=is_approximate,
+        tract_geoid=_tract_geoid(m.get("geographies", {})),
     )
+
+
+def _tract_geoid(geographies: dict) -> str:
+    tracts = geographies.get("Census Tracts") or []
+    geoid = (tracts[0].get("GEOID") or "") if tracts else ""
+    return geoid if len(geoid) == 11 and geoid.isdigit() else ""
 
 
 def _looks_approximate(match: dict) -> bool:
@@ -109,6 +118,7 @@ class ReverseCountyResult:
     county_fips: str  # 5-digit (state + county)
     county_name: str
     not_found: bool = False
+    tract_geoid: str = ""
 
 
 def reverse_county(
@@ -152,6 +162,7 @@ def reverse_county(
             f"{state_fips}{county_only}" if state_fips and county_only else ""
         ),
         county_name=c.get("NAME", ""),
+        tract_geoid=_tract_geoid(data.get("result", {}).get("geographies", {})),
     )
 
 
@@ -206,6 +217,7 @@ def geocode_with_fallback(
         state_fips=rev.state_fips,
         county_fips=rev.county_fips,
         county_name=rev.county_name,
+        tract_geoid=rev.tract_geoid,
         # OSM coordinates land on the building or street; that's a coarser
         # match than Census's USPS-validated rooftop, so flag approximate.
         match_is_approximate=True,
