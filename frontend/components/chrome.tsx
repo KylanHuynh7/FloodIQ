@@ -139,17 +139,17 @@ export function AddressForm({
             placeholder="123 Main St, Charleston, SC 29401"
             maxLength={200}
             /* 16px minimum so iOS Safari doesn't zoom the page on focus */
-            className="peer h-[52px] w-full border-[1.5px] border-ink bg-surface px-4 text-[16px] text-ink shadow-[3px_3px_0_0_#0f2430] outline-none transition-shadow placeholder:text-ink-4 focus:shadow-[3px_3px_0_0_#f2b544] focus-visible:outline-none sm:border-r-0 sm:shadow-none sm:focus:shadow-none"
+            className="peer h-[52px] w-full border-2 border-ink bg-surface px-4 text-[16px] text-ink shadow-[3px_3px_0_0_#0f2430] outline-none transition-shadow placeholder:text-ink-4 focus:shadow-[3px_3px_0_0_#f2b544] focus-visible:outline-none sm:border-r-0 sm:shadow-none sm:focus:shadow-none"
           />
           <span className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-[3px] origin-left scale-x-0 bg-signal transition-transform duration-300 peer-focus:scale-x-100 sm:block" />
         </div>
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`group flex h-[52px] shrink-0 items-center justify-center gap-2 border-[1.5px] px-5 text-[15px] font-semibold transition ${
+          className={`group flex h-[52px] shrink-0 items-center justify-center gap-2 border-2 px-5 text-[15px] font-semibold transition ${
             canSubmit
               ? "cursor-pointer border-ink bg-ink text-white hover:bg-accent-deep"
-              : "cursor-not-allowed border-ink/25 bg-surface-2 text-ink-4"
+              : "cursor-not-allowed border-ink bg-surface-2 text-ink-4"
           }`}
         >
           {submitting ? "Starting…" : "Check flood risk"}

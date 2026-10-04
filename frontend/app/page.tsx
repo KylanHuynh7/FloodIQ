@@ -98,7 +98,7 @@ export default function LandingPage() {
                 approximate locations deserve less trust.
               </p>
             </div>
-            <ol className="grid border-t-[1.5px] border-ink sm:grid-cols-3 lg:col-span-8">
+            <ol className="grid border-t-2 border-ink sm:grid-cols-3 lg:col-span-8">
               {STEPS.map((s) => (
                 <li
                   key={s.n}
@@ -120,7 +120,7 @@ export default function LandingPage() {
             href={METHODOLOGY_URL}
             target="_blank"
             rel="noreferrer"
-            className="group mt-14 flex flex-col justify-between gap-4 border-[1.5px] border-ink bg-surface p-6 transition-shadow hover:shadow-[6px_6px_0_0_#0f2430] sm:flex-row sm:items-center sm:p-8"
+            className="group mt-14 flex flex-col justify-between gap-4 border-2 border-ink bg-surface p-6 transition-shadow hover:shadow-[6px_6px_0_0_#0f2430] sm:flex-row sm:items-center sm:p-8"
           >
             <div>
               <div className="font-display text-[20px] font-bold tracking-[-0.3px] text-ink">
@@ -130,7 +130,7 @@ export default function LandingPage() {
                 Weights, edge cases and known limitations, all documented in the open.
               </p>
             </div>
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center border-[1.5px] border-ink transition-colors group-hover:bg-signal">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-ink transition-colors group-hover:bg-signal">
               <ArrowIcon size={16} />
             </span>
           </a>

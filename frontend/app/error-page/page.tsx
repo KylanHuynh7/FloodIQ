@@ -60,7 +60,7 @@ function ErrorInner() {
       <main className="contours border-b border-ink/10">
         <div className="mx-auto grid w-full max-w-[1160px] gap-10 px-4 pt-10 pb-14 sm:px-6 sm:pt-16 lg:grid-cols-12 lg:gap-14">
           <section className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 border-[1.5px] border-ink bg-signal px-3 py-1 text-[13px] font-semibold text-ink">
+            <div className="inline-flex items-center gap-2 border-2 border-ink bg-signal px-3 py-1 text-[13px] font-semibold text-ink">
               <WarnIcon size={13} />
               {copy.eyebrow}
             </div>
@@ -80,7 +80,7 @@ function ErrorInner() {
             )}
 
             {kind === "notfound" && (
-              <div className="mt-8 border-[1.5px] border-ink bg-surface">
+              <div className="mt-8 border-2 border-ink bg-surface">
                 <h2 className="border-b border-ink/15 px-5 py-3 font-display text-[16px] font-bold text-ink">
                   Common causes
                 </h2>
@@ -100,7 +100,7 @@ function ErrorInner() {
             {copy.retry && badInput && (
               <a
                 href={`/score?address=${encodeURIComponent(badInput)}`}
-                className="mb-6 flex h-[52px] items-center justify-center border-[1.5px] border-ink bg-ink text-[15px] font-semibold text-white transition hover:bg-accent-deep"
+                className="mb-6 flex h-[52px] items-center justify-center border-2 border-ink bg-ink text-[15px] font-semibold text-white transition hover:bg-accent-deep"
               >
                 Try again
               </a>

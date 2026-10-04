@@ -138,7 +138,7 @@ export function ConfirmationMap({
     <div>
       <div
         ref={containerRef}
-        className="relative w-full overflow-hidden border-[1.5px] border-ink bg-surface-2"
+        className="relative w-full overflow-hidden border-2 border-ink bg-surface-2"
         style={{ height }}
       >
         {layout && (
@@ -191,7 +191,7 @@ export function ConfirmationMap({
         )}
 
         {approximate && (
-          <div className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-start gap-x-2 border-[1.5px] border-ink bg-signal px-3 py-2 text-[12.5px] leading-[1.4] text-ink">
+          <div className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-start gap-x-2 border-2 border-ink bg-signal px-3 py-2 text-[12.5px] leading-[1.4] text-ink">
             <span className="font-semibold">Approximate location.</span>
             <span>Check that the pin is on the right property.</span>
           </div>

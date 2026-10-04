@@ -35,7 +35,7 @@ export function WaterLevelExplorer() {
     `M0 ${y} q 30 -6 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 t 60 0 V ${H} H 0 Z`;
 
   return (
-    <figure className="border-[1.5px] border-ink bg-surface shadow-[6px_6px_0_0_#0f2430]">
+    <figure className="border-2 border-ink bg-surface shadow-[6px_6px_0_0_#0f2430]">
       <div className="flex items-center justify-between border-b border-ink/15 px-4 py-2.5">
         <figcaption className="text-[14px] font-semibold text-ink">
           Watch the water rise
@@ -109,7 +109,7 @@ export function WaterLevelExplorer() {
       </div>
 
       <div className="border-t border-ink/15 p-3 sm:p-4">
-        <div role="tablist" aria-label="Time horizon" className="grid grid-cols-3 divide-x-[1.5px] divide-ink border-[1.5px] border-ink">
+        <div role="tablist" aria-label="Time horizon" className="grid grid-cols-3 divide-x-2 divide-ink border-2 border-ink">
           {LEVELS.map((l, i) => {
             const active = i === idx;
             return (

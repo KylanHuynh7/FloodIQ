@@ -99,7 +99,7 @@ export default function ResultPage() {
                 href={apiUrl(`/report/${data.score_id}.pdf`)}
                 target="_blank"
                 rel="noreferrer"
-                className="group mt-5 flex min-h-[56px] items-center justify-between gap-4 border-[1.5px] border-ink bg-ink px-5 py-3 text-white transition hover:bg-accent-deep"
+                className="group mt-5 flex min-h-[56px] items-center justify-between gap-4 border-2 border-ink bg-ink px-5 py-3 text-white transition hover:bg-accent-deep"
               >
                 <div>
                   <div className="text-[15px] font-semibold">Download the full report</div>
@@ -138,8 +138,8 @@ export default function ResultPage() {
 
           {/* Sources + how to read */}
           <section className="mt-14 grid gap-6 lg:grid-cols-12">
-            <div className="min-w-0 border-[1.5px] border-ink bg-surface lg:col-span-7">
-              <h2 className="border-b-[1.5px] border-ink px-5 py-3.5 font-display text-[17px] font-bold text-ink sm:px-6">
+            <div className="min-w-0 border-2 border-ink bg-surface lg:col-span-7">
+              <h2 className="border-b-2 border-ink px-5 py-3.5 font-display text-[17px] font-bold text-ink sm:px-6">
                 Source data
               </h2>
               <dl className="divide-y divide-ink/10">
@@ -193,7 +193,7 @@ export default function ResultPage() {
             </div>
           </section>
 
-          <section className="mt-14 border-[1.5px] border-ink bg-surface p-5 sm:p-7">
+          <section className="mt-14 border-2 border-ink bg-surface p-5 sm:p-7">
             <div className="mb-3 font-display text-[18px] font-bold text-ink">Check another address</div>
             <AddressForm />
           </section>

@@ -121,7 +121,7 @@ function ScoringInner() {
 
           <section
             aria-live="polite"
-            className="mt-8 grid border-[1.5px] border-ink bg-surface shadow-[6px_6px_0_0_#0f2430] sm:grid-cols-[120px_1fr]"
+            className="mt-8 grid border-2 border-ink bg-surface shadow-[6px_6px_0_0_#0f2430] sm:grid-cols-[120px_1fr]"
           >
             <TideGauge fill={fill} elapsed={elapsed} />
             <ol className="divide-y divide-ink/10 px-5 sm:px-6">
@@ -132,7 +132,7 @@ function ScoringInner() {
           </section>
 
           {error ? (
-            <div className="mt-5 border-[1.5px] border-danger bg-danger-soft px-5 py-4 text-[14.5px] text-ink-2">
+            <div className="mt-5 border-2 border-danger bg-danger-soft px-5 py-4 text-[14.5px] text-ink-2">
               <div className="font-semibold text-danger">Something went wrong</div>
               <p className="mt-1">{error}</p>
               <a href="/" className="mt-2 inline-block font-medium text-accent underline underline-offset-4">
@@ -169,7 +169,7 @@ function TideGauge({ fill, elapsed }: { fill: number; elapsed: number }) {
   const mm = String(Math.floor(elapsed / 60));
   const ss = String(elapsed % 60).padStart(2, "0");
   return (
-    <div className="relative flex h-24 items-end overflow-hidden border-b-[1.5px] border-ink bg-surface-2 sm:h-auto sm:min-h-[280px] sm:border-r-[1.5px] sm:border-b-0">
+    <div className="relative flex h-24 items-end overflow-hidden border-b-2 border-ink bg-surface-2 sm:h-auto sm:min-h-[280px] sm:border-r-2 sm:border-b-0">
       {/* water column (vertical on desktop, horizontal on mobile) */}
       <div
         className="absolute inset-y-0 left-0 bg-water/80 transition-[width] duration-1000 ease-out sm:hidden"
@@ -213,7 +213,7 @@ function StatusStep({
   return (
     <li className="flex items-center gap-4 py-4">
       <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center border-[1.5px] font-display text-[13px] font-bold transition-colors ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 font-display text-[13px] font-bold transition-colors ${
           state === "done"
             ? "border-ink bg-ink text-white"
             : state === "running"

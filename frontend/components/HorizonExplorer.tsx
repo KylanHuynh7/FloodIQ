@@ -74,12 +74,12 @@ export function HorizonExplorer({
   }
 
   return (
-    <div className="border-[1.5px] border-ink bg-surface shadow-[6px_6px_0_0_#0f2430]">
+    <div className="border-2 border-ink bg-surface shadow-[6px_6px_0_0_#0f2430]">
       <div
         role="tablist"
         aria-label="Time horizon"
         onKeyDown={onKey}
-        className="grid grid-cols-3 divide-x-[1.5px] divide-ink border-b-[1.5px] border-ink"
+        className="grid grid-cols-3 divide-x-2 divide-ink border-b-2 border-ink"
       >
         {horizons.map((hz, i) => {
           const active = i === sel;
@@ -161,7 +161,7 @@ export function HorizonExplorer({
                 </div>
                 <div className="flex flex-col items-start gap-2 sm:items-end">
                   <span
-                    className="border-[1.5px] px-3 py-1 text-[13.5px] font-bold"
+                    className="border-2 px-3 py-1 text-[13.5px] font-bold"
                     style={{ backgroundColor: band.soft, color: band.ink, borderColor: band.fill }}
                   >
                     {band.label} risk
