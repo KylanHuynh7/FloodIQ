@@ -16,3 +16,5 @@ data/noaa_slr/*.zip
 
 # Vercel CLI project link
 .vercel/
+.vercel
+.env*
