@@ -58,9 +58,9 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
-# CORS — needed because the public deployment splits frontend (Vercel) and
-# backend (a tunnel to localhost). Browsers call /api/* on the tunnel
-# directly; without CORS the browser blocks the response.
+# CORS — needed because the frontend (flood-iq.vercel.app) and this backend
+# (flood-iq-api.vercel.app) are separate origins. Browsers call /api/* on
+# the backend directly; without CORS the browser blocks the response.
 # Configurable via:
 #   FLOODIQ_ALLOWED_ORIGINS  — comma-separated exact origins
 #   FLOODIQ_ALLOWED_ORIGIN_REGEX — single regex (Vercel preview deploys

@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FloodIQ frontend
 
-## Getting Started
-
-First, run the development server:
+Next.js app for FloodIQ: landing page, scoring progress, result report, and error pages. See the [root README](../README.md) for the full architecture.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+In local development, `/api/*` and `/report/*.pdf` are proxied to the FastAPI backend on `localhost:8000` (see `next.config.ts`), so start the backend first. To point at another backend, set `FLOODIQ_BACKEND_ORIGIN`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+On Vercel, `NEXT_PUBLIC_FLOODIQ_API_BASE` is set to `https://flood-iq-api.vercel.app` and the browser calls the backend directly (see `lib/api.ts`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Key pieces:
 
-## Learn More
+| Path | What it is |
+|---|---|
+| `app/page.tsx` | Landing page and address search |
+| `app/score/page.tsx` | Scoring progress (tide gauge), error classification |
+| `app/result/[token]/page.tsx` | Result report |
+| `components/HorizonExplorer.tsx` | Horizon tabs, trajectory chart, "typical for this county" view |
+| `components/ConfirmationMap.tsx` | Esri tile map with geocoded pin |
+| `lib/tokens.ts` | Shared types, risk bands, hazard levels |
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Note: this repo pins Next.js 16, which has breaking changes from earlier versions (see `AGENTS.md`).
