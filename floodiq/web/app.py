@@ -140,7 +140,8 @@ def api_score(request: Request, payload: dict) -> JSONResponse:
         raise HTTPException(status_code=400, detail="address is required")
     if len(address) > MAX_ADDRESS_LEN:
         raise HTTPException(status_code=400, detail="address too long")
-    report = score_address(address)
+    # This endpoint records the score itself (below) to get the result token.
+    report = score_address(address, record_history=False)
     # Persist so a token is available for /result/{token} and /report/{token}.pdf.
     token: str | None = None
     if not report.error:
@@ -505,6 +506,7 @@ def _report_to_jsonable(report: ScoreReport) -> dict:
             "confidence_label": hr.confidence_label,
             "confidence_drivers": hr.confidence_drivers,
             "disagreement": hr.disagreement,
+            "county_tie_share": hr.county_tie_share,
         }
         for h, hr in report.horizons.items()
     }
@@ -545,6 +547,7 @@ def _report_from_stored_payload(payload: dict) -> ScoreReport:
             confidence_label=v["confidence_label"],
             confidence_drivers=v["confidence_drivers"],
             disagreement=v["disagreement"],
+            county_tie_share=v.get("county_tie_share"),
         )
         for k, v in payload["horizons"].items()
     }

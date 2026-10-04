@@ -99,3 +99,47 @@ def test_covered_and_wet():
     assert report.noaa_region_covered is True
     assert report.is_inland is False  # 100y has feet > 0
     assert report.inland_note is None
+
+
+def _flat_horizons(score: float):
+    from floodiq.pipeline import HorizonReport
+
+    return {
+        h: HorizonReport(
+            horizon_years=h,
+            fema_component=score,
+            noaa_component=0,
+            composite_absolute=score,
+            composite_county_percentile=50.0,
+            composite_national_percentile=50.0,
+            confidence_label="Medium",
+            confidence_drivers=[],
+            disagreement=False,
+        )
+        for h in (10, 30, 100)
+    }
+
+
+def test_headline_for_covered_but_dry_says_no_projected_inundation():
+    from floodiq.pipeline import _summary_headline
+
+    text = _summary_headline(_flat_horizons(10), True, noaa_region_covered=True)
+    assert text.startswith("Low near-term flood risk.")
+    assert "no sea-level-rise inundation at this location" in text
+    assert "inland" not in text.lower()
+
+
+def test_headline_outside_coverage_names_coverage_gap():
+    from floodiq.pipeline import _summary_headline
+
+    text = _summary_headline(_flat_horizons(10), True, noaa_region_covered=False)
+    assert "outside NOAA's sea-level-rise coverage" in text
+
+
+def test_hazard_level_thresholds_match_headline():
+    from floodiq.pipeline import _summary_headline, hazard_level
+
+    assert hazard_level(75) == "High"  # Zone AE
+    assert hazard_level(65) == "Moderate"  # Zone A
+    assert hazard_level(10) == "Low"  # Zone X unshaded
+    assert _summary_headline(_flat_horizons(75), False).startswith("High near-term")

@@ -1,35 +1,97 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-figtree), system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 
-  --color-paper: #ffffff;
-  --color-paper-alt: #e8e2d0;
-  --color-surface: #f0ece0;
-  --color-surface-alt: #e8e2d0;
+  /* Chart paper — a cool, faintly green-gray, like a survey sheet */
+  --color-canvas: #eef2f1;
+  --color-surface: #ffffff;
+  --color-surface-2: #e4ebe9;
 
-  --color-ink: #0a0a0a;
-  --color-ink-2: #2a2620;
-  --color-ink-3: #5a554a;
-  --color-ink-4: #8a8474;
+  --color-ink: #0f2430;
+  --color-ink-2: #34495a;
+  --color-ink-3: #5a6e7c;
+  --color-ink-4: #87979f;
 
-  --color-line: #b8b09c;
-  --color-line-soft: #d6cfba;
+  --color-line: #cfd9d8;
+  --color-line-strong: #9caeb1;
 
-  --color-signal: #8a3a2a;
+  /* Deep-sea teal + shallow-water tint */
+  --color-accent: #0f5e6e;
+  --color-accent-deep: #0a4552;
+  --color-accent-soft: #d9ebee;
+  --color-water: #3f8ea6;
+  --color-water-soft: #cde4ea;
 
-  --color-risk-low: #c8d2bd;
-  --color-risk-moderate: #e2c98a;
-  --color-risk-elevated: #d8a070;
-  --color-risk-high: #c87858;
-  --color-risk-very-high: #8a3a2a;
+  /* Tide-marker yellow: "you are here" highlights only */
+  --color-signal: #f2b544;
+  --color-signal-soft: #fdf3dc;
+
+  --color-warn: #9a5200;
+  --color-warn-soft: #fbf0de;
+  --color-danger: #a8261b;
+  --color-danger-soft: #fbeceb;
+
+  --color-risk-low: #5fa8a0;
+  --color-risk-moderate: #e3c15a;
+  --color-risk-elevated: #e0914a;
+  --color-risk-high: #cf5c3c;
+  --color-risk-very-high: #9e2a1f;
 }
 
 html,
 body {
-  background: var(--color-paper);
+  background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-feature-settings: "tnum";
+  -webkit-text-size-adjust: 100%;
+}
+
+/* In the base layer so component utilities (e.g. focus-visible:outline-none)
+   can override it; unlayered rules would beat every Tailwind utility. */
+@layer base {
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Faint topographic contour texture used behind hero areas. */
+.contours {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27560%27 height=%27560%27 viewBox=%270 0 560 560%27%3E%3Cg fill=%27none%27 stroke=%27%230f5e6e%27 stroke-opacity=%270.08%27 stroke-width=%271%27%3E%3Cpath d=%27M0 60.0 L8 61.6 L16 63.2 L24 64.7 L32 66.1 L40 67.5 L48 68.7 L56 69.7 L64 70.5 L72 71.2 L80 71.7 L88 72.0 L96 72.1 L104 72.1 L112 71.9 L120 71.5 L128 71.0 L136 70.3 L144 69.6 L152 68.8 L160 68.0 L168 67.2 L176 66.3 L184 65.5 L192 64.7 L200 63.9 L208 63.2 L216 62.6 L224 62.1 L232 61.6 L240 61.2 L248 60.9 L256 60.6 L264 60.4 L272 60.2 L280 60.0 L288 59.8 L296 59.6 L304 59.4 L312 59.1 L320 58.8 L328 58.4 L336 57.9 L344 57.4 L352 56.8 L360 56.1 L368 55.3 L376 54.5 L384 53.7 L392 52.8 L400 52.0 L408 51.2 L416 50.4 L424 49.7 L432 49.0 L440 48.5 L448 48.1 L456 47.9 L464 47.9 L472 48.0 L480 48.3 L488 48.8 L496 49.5 L504 50.3 L512 51.3 L520 52.5 L528 53.9 L536 55.3 L544 56.8 L552 58.4 L560 60.0%27/%3E%3Cpath d=%27M0 106.0 L8 107.3 L16 108.3 L24 109.2 L32 109.8 L40 110.1 L48 110.2 L56 110.1 L64 109.8 L72 109.3 L80 108.6 L88 107.7 L96 106.8 L104 105.7 L112 104.6 L120 103.5 L128 102.3 L136 101.2 L144 100.1 L152 99.1 L160 98.2 L168 97.3 L176 96.6 L184 96.0 L192 95.5 L200 95.0 L208 94.7 L216 94.4 L224 94.2 L232 94.0 L240 93.8 L248 93.6 L256 93.4 L264 93.2 L272 92.9 L280 92.5 L288 92.0 L296 91.5 L304 90.8 L312 90.1 L320 89.3 L328 88.4 L336 87.5 L344 86.5 L352 85.6 L360 84.6 L368 83.7 L376 82.9 L384 82.2 L392 81.6 L400 81.1 L408 80.9 L416 80.8 L424 80.9 L432 81.3 L440 81.9 L448 82.7 L456 83.7 L464 85.0 L472 86.4 L480 88.0 L488 89.7 L496 91.6 L504 93.5 L512 95.5 L520 97.4 L528 99.4 L536 101.2 L544 103.0 L552 104.6 L560 106.0%27/%3E%3Cpath d=%27M0 145.5 L8 145.5 L16 145.3 L24 144.8 L32 144.1 L40 143.2 L48 142.1 L56 141.0 L64 139.7 L72 138.4 L80 137.0 L88 135.7 L96 134.4 L104 133.2 L112 132.1 L120 131.1 L128 130.3 L136 129.6 L144 129.0 L152 128.6 L160 128.3 L168 128.1 L176 128.1 L184 128.1 L192 128.1 L200 128.2 L208 128.3 L216 128.4 L224 128.5 L232 128.4 L240 128.3 L248 128.1 L256 127.7 L264 127.2 L272 126.6 L280 125.9 L288 125.1 L296 124.2 L304 123.2 L312 122.2 L320 121.2 L328 120.2 L336 119.2 L344 118.4 L352 117.6 L360 117.0 L368 116.6 L376 116.3 L384 116.3 L392 116.5 L400 117.0 L408 117.7 L416 118.7 L424 119.9 L432 121.3 L440 122.9 L448 124.7 L456 126.6 L464 128.6 L472 130.6 L480 132.7 L488 134.7 L496 136.6 L504 138.5 L512 140.1 L520 141.6 L528 142.9 L536 144.0 L544 144.7 L552 145.3 L560 145.5%27/%3E%3Cpath d=%27M0 226.9 L8 225.7 L16 224.5 L24 223.3 L32 222.2 L40 221.2 L48 220.2 L56 219.4 L64 218.7 L72 218.2 L80 217.7 L88 217.4 L96 217.2 L104 217.2 L112 217.2 L120 217.2 L128 217.3 L136 217.5 L144 217.6 L152 217.7 L160 217.8 L168 217.8 L176 217.7 L184 217.6 L192 217.3 L200 217.0 L208 216.5 L216 216.0 L224 215.4 L232 214.7 L240 214.0 L248 213.2 L256 212.5 L264 211.8 L272 211.1 L280 210.5 L288 210.1 L296 209.7 L304 209.5 L312 209.5 L320 209.7 L328 210.0 L336 210.6 L344 211.3 L352 212.3 L360 213.4 L368 214.7 L376 216.1 L384 217.6 L392 219.2 L400 220.9 L408 222.6 L416 224.2 L424 225.8 L432 227.3 L440 228.7 L448 230.0 L456 231.0 L464 231.9 L472 232.6 L480 233.0 L488 233.2 L496 233.2 L504 233.0 L512 232.6 L520 232.0 L528 231.2 L536 230.3 L544 229.2 L552 228.1 L560 226.9%27/%3E%3Cpath d=%27M0 257.4 L8 256.3 L16 255.3 L24 254.3 L32 253.5 L40 252.8 L48 252.2 L56 251.7 L64 251.2 L72 250.9 L80 250.5 L88 250.3 L96 250.0 L104 249.8 L112 249.6 L120 249.3 L128 249.0 L136 248.7 L144 248.4 L152 248.0 L160 247.5 L168 247.1 L176 246.6 L184 246.1 L192 245.6 L200 245.1 L208 244.6 L216 244.2 L224 243.9 L232 243.6 L240 243.5 L248 243.5 L256 243.6 L264 243.9 L272 244.4 L280 245.0 L288 245.8 L296 246.8 L304 247.9 L312 249.2 L320 250.6 L328 252.1 L336 253.8 L344 255.5 L352 257.2 L360 258.9 L368 260.6 L376 262.3 L384 263.8 L392 265.3 L400 266.6 L408 267.7 L416 268.7 L424 269.5 L432 270.0 L440 270.4 L448 270.5 L456 270.4 L464 270.1 L472 269.6 L480 268.9 L488 268.0 L496 267.1 L504 266.0 L512 264.8 L520 263.5 L528 262.3 L536 261.0 L544 259.7 L552 258.5 L560 257.4%27/%3E%3Cpath d=%27M0 285.3 L8 285.1 L16 285.0 L24 285.0 L32 285.1 L40 285.3 L48 285.6 L56 285.9 L64 286.2 L72 286.5 L80 286.7 L88 286.8 L96 286.9 L104 286.8 L112 286.6 L120 286.3 L128 285.9 L136 285.4 L144 284.8 L152 284.1 L160 283.4 L168 282.6 L176 281.9 L184 281.2 L192 280.5 L200 280.0 L208 279.5 L216 279.3 L224 279.2 L232 279.3 L240 279.6 L248 280.2 L256 280.9 L264 281.9 L272 283.1 L280 284.5 L288 286.0 L296 287.7 L304 289.5 L312 291.4 L320 293.3 L328 295.2 L336 297.0 L344 298.7 L352 300.3 L360 301.8 L368 303.0 L376 304.1 L384 304.8 L392 305.4 L400 305.6 L408 305.6 L416 305.3 L424 304.8 L432 304.0 L440 303.0 L448 301.9 L456 300.6 L464 299.2 L472 297.6 L480 296.1 L488 294.6 L496 293.1 L504 291.6 L512 290.3 L520 289.1 L528 288.0 L536 287.1 L544 286.3 L552 285.7 L560 285.3%27/%3E%3Cpath d=%27M0 382.6 L8 382.6 L16 382.6 L24 382.6 L32 382.5 L40 382.4 L48 382.2 L56 381.9 L64 381.6 L72 381.3 L80 380.9 L88 380.5 L96 380.1 L104 379.8 L112 379.4 L120 379.2 L128 379.0 L136 379.0 L144 379.1 L152 379.4 L160 379.8 L168 380.4 L176 381.2 L184 382.2 L192 383.4 L200 384.7 L208 386.2 L216 387.8 L224 389.6 L232 391.4 L240 393.3 L248 395.2 L256 397.1 L264 398.9 L272 400.7 L280 402.3 L288 403.8 L296 405.0 L304 406.1 L312 406.9 L320 407.5 L328 407.8 L336 407.9 L344 407.6 L352 407.2 L360 406.5 L368 405.5 L376 404.4 L384 403.1 L392 401.7 L400 400.1 L408 398.5 L416 396.9 L424 395.2 L432 393.6 L440 392.0 L448 390.5 L456 389.1 L464 387.8 L472 386.7 L480 385.7 L488 384.9 L496 384.2 L504 383.7 L512 383.3 L520 383.0 L528 382.8 L536 382.7 L544 382.6 L552 382.6 L560 382.6%27/%3E%3Cpath d=%27M0 418.2 L8 418.1 L16 418.0 L24 417.8 L32 417.6 L40 417.4 L48 417.1 L56 416.9 L64 416.7 L72 416.5 L80 416.4 L88 416.3 L96 416.4 L104 416.5 L112 416.8 L120 417.2 L128 417.7 L136 418.4 L144 419.2 L152 420.2 L160 421.3 L168 422.5 L176 423.8 L184 425.2 L192 426.7 L200 428.2 L208 429.8 L216 431.3 L224 432.8 L232 434.2 L240 435.5 L248 436.7 L256 437.7 L264 438.5 L272 439.2 L280 439.7 L288 439.9 L296 439.9 L304 439.8 L312 439.4 L320 438.8 L328 438.0 L336 437.0 L344 436.0 L352 434.7 L360 433.4 L368 432.1 L376 430.7 L384 429.2 L392 427.8 L400 426.5 L408 425.2 L416 424.0 L424 422.9 L432 421.9 L440 421.0 L448 420.2 L456 419.6 L464 419.1 L472 418.7 L480 418.4 L488 418.3 L496 418.2 L504 418.1 L512 418.1 L520 418.1 L528 418.2 L536 418.2 L544 418.2 L552 418.2 L560 418.2%27/%3E%3Cpath d=%27M0 495.4 L8 494.8 L16 494.3 L24 493.7 L32 493.2 L40 492.8 L48 492.5 L56 492.3 L64 492.3 L72 492.4 L80 492.7 L88 493.2 L96 493.9 L104 494.8 L112 495.9 L120 497.2 L128 498.6 L136 500.1 L144 501.7 L152 503.4 L160 505.1 L168 506.7 L176 508.3 L184 509.8 L192 511.2 L200 512.4 L208 513.4 L216 514.2 L224 514.7 L232 515.0 L240 515.0 L248 514.7 L256 514.2 L264 513.4 L272 512.4 L280 511.3 L288 509.9 L296 508.4 L304 506.8 L312 505.2 L320 503.5 L328 501.8 L336 500.2 L344 498.7 L352 497.3 L360 496.0 L368 495.0 L376 494.1 L384 493.3 L392 492.8 L400 492.5 L408 492.4 L416 492.4 L424 492.6 L432 492.9 L440 493.3 L448 493.8 L456 494.3 L464 494.9 L472 495.4 L480 495.9 L488 496.3 L496 496.6 L504 496.9 L512 497.0 L520 497.0 L528 496.9 L536 496.6 L544 496.3 L552 495.9 L560 495.4%27/%3E%3Cellipse cx=%27400%27 cy=%27175%27 rx=%2754%27 ry=%2720%27/%3E%3Cellipse cx=%27400%27 cy=%27175%27 rx=%2728%27 ry=%279%27/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 560px 560px;
+}
+
+@keyframes floodiq-wave {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes floodiq-ping {
+  0%   { transform: scale(0.6); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes floodiq-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.rise {
+  animation: floodiq-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

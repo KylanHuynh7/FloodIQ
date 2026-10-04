@@ -61,14 +61,12 @@ def lookup_fema(
         client = httpx.Client(timeout=DEFAULT_TIMEOUT)
     try:
         try:
-            resp = client.get(NFHL_FLOOD_HAZARD_LAYER_URL, params=params)
-        except httpx.TimeoutException:
-            # One retry — NFHL is sporadically slow but usually fine on
-            # a second attempt within a few seconds.
-            resp = client.get(NFHL_FLOOD_HAZARD_LAYER_URL, params=params)
-        resp.raise_for_status()
-        data = resp.json()
-        features = data.get("features", [])
+            data = _query_layer(client, params)
+        except (httpx.TimeoutException, FemaServiceError):
+            # One retry — NFHL is sporadically slow or briefly erroring
+            # but usually fine on a second attempt within a few seconds.
+            data = _query_layer(client, params)
+        features = data["features"]
         effective_date = _fetch_effective_date(features, client)
     finally:
         if own_client:
@@ -102,6 +100,28 @@ def lookup_fema(
         unmapped=zone_raw is None,
         zone_subtype=subtype,
     )
+
+
+class FemaServiceError(httpx.HTTPError):
+    """NFHL answered, but with an error instead of a query result.
+
+    ArcGIS REST reports server-side failures as HTTP 200 with an
+    {"error": {...}} body. Reading that as "no features" would mark a
+    mapped address as unmapped (Section 9.1) when the truth is that FEMA
+    was briefly unavailable. Subclassing httpx.HTTPError lets the
+    pipeline's existing upstream-unavailable handling catch it."""
+
+
+def _query_layer(client: httpx.Client, params: dict) -> dict:
+    resp = client.get(NFHL_FLOOD_HAZARD_LAYER_URL, params=params)
+    resp.raise_for_status()
+    try:
+        data = resp.json()
+    except ValueError as e:
+        raise FemaServiceError("NFHL returned a non-JSON response") from e
+    if not isinstance(data, dict) or "error" in data or "features" not in data:
+        raise FemaServiceError(f"NFHL query failed: {str(data)[:200]}")
+    return data
 
 
 def _normalize_zone_label(zone_raw: str | None, subtype: str | None) -> str | None:

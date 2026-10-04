@@ -62,7 +62,7 @@ def test_falls_back_to_osm_when_census_misses():
         patch("floodiq.sources.nominatim.geocode_osm", return_value=osm_match),
         patch.object(geocoder, "reverse_county", return_value=rev),
     ):
-        result = geocode_with_fallback("18411 Tuba Street")
+        result = geocode_with_fallback("18411 Tuba Street, Tarzana, CA")
         assert result.not_found is False
         assert result.county_fips == "06037"
         assert result.county_name == "Los Angeles"
@@ -82,7 +82,7 @@ def test_osm_non_us_match_is_treated_as_not_found():
         patch.object(geocoder, "geocode", return_value=CENSUS_MISS),
         patch("floodiq.sources.nominatim.geocode_osm", return_value=osm_match),
     ):
-        result = geocode_with_fallback("123 Some Road")
+        result = geocode_with_fallback("123 Some Road, Toronto, ON M5V 2T6")
         assert result.not_found is True
 
 
@@ -110,5 +110,61 @@ def test_reverse_county_failure_keeps_us_safe():
         patch("floodiq.sources.nominatim.geocode_osm", return_value=osm_match),
         patch.object(geocoder, "reverse_county", return_value=miss_rev),
     ):
-        result = geocode_with_fallback("ambiguous query")
+        result = geocode_with_fallback("12 Ambiguous Rd, NE")
         assert result.not_found is True
+
+
+def test_osm_not_consulted_for_input_without_house_number():
+    # Nominatim resolves "x" to a business named X in San Francisco.
+    with (
+        patch.object(geocoder, "geocode", return_value=CENSUS_MISS),
+        patch("floodiq.sources.nominatim.geocode_osm") as osm,
+    ):
+        assert geocode_with_fallback("x").not_found is True
+        osm.assert_not_called()
+
+
+def test_osm_not_consulted_without_state_or_zip():
+    with (
+        patch.object(geocoder, "geocode", return_value=CENSUS_MISS),
+        patch("floodiq.sources.nominatim.geocode_osm") as osm,
+    ):
+        assert geocode_with_fallback("10 Downing St, London").not_found is True
+        osm.assert_not_called()
+
+
+def test_osm_match_in_a_different_state_is_rejected():
+    osm_match = OsmMatch(
+        display_name="Downing Street, Old Bridge Township, New Jersey, 08859, United States",
+        latitude=40.4,
+        longitude=-74.3,
+        country_code="us",
+    )
+    nj = ReverseCountyResult(
+        state_fips="34", county_fips="34023", county_name="Middlesex", not_found=False
+    )
+    with (
+        patch.object(geocoder, "geocode", return_value=CENSUS_MISS),
+        patch("floodiq.sources.nominatim.geocode_osm", return_value=osm_match),
+        patch.object(geocoder, "reverse_county", return_value=nj),
+    ):
+        assert geocode_with_fallback("10 Downing St, Austin, TX").not_found is True
+
+
+def test_osm_match_with_zip_only_requires_zip_agreement():
+    osm_match = OsmMatch(
+        display_name="100, East Bay Street, Charleston, South Carolina, 29401, United States",
+        latitude=32.78,
+        longitude=-79.93,
+        country_code="us",
+    )
+    sc = ReverseCountyResult(
+        state_fips="45", county_fips="45019", county_name="Charleston", not_found=False
+    )
+    with (
+        patch.object(geocoder, "geocode", return_value=CENSUS_MISS),
+        patch("floodiq.sources.nominatim.geocode_osm", return_value=osm_match),
+        patch.object(geocoder, "reverse_county", return_value=sc),
+    ):
+        assert geocode_with_fallback("100 East Bay St 29401").not_found is False
+        assert geocode_with_fallback("100 East Bay St 90210").not_found is True

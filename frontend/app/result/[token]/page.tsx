@@ -2,30 +2,24 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  CONFIDENCE,
-  FloodScoreResponse,
-  HorizonScore,
-  ordinalSuffix,
-  riskColor,
-} from "@/lib/tokens";
-import { DownloadIcon, InfoIcon, PinIcon, WarnIcon } from "@/components/icons";
+import { FloodScoreResponse, HorizonScore } from "@/lib/tokens";
+import { DownloadIcon } from "@/components/icons";
+import { AddressForm, Kicker, SiteFooter, SiteHeader } from "@/components/chrome";
 import { ConfirmationMap } from "@/components/ConfirmationMap";
-import { DistHistogram } from "@/components/DistHistogram";
+import { HorizonExplorer } from "@/components/HorizonExplorer";
 import { apiUrl } from "@/lib/api";
 
 export default function ResultPage() {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<FloodScoreResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ status: number; message: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetch(apiUrl(`/api/result/${token}`))
       .then(async (r) => {
         const text = await r.text();
-        let body: FloodScoreResponse | { detail?: string; error?: string } | null =
-          null;
+        let body: FloodScoreResponse | { detail?: string; error?: string } | null = null;
         try {
           body = JSON.parse(text);
         } catch {
@@ -34,348 +28,265 @@ export default function ResultPage() {
         if (cancelled) return;
         if (!r.ok) {
           const d = (body as { detail?: string; error?: string }) ?? {};
-          setError(d.detail || d.error || text || `HTTP ${r.status}`);
+          setError({ status: r.status, message: d.detail || d.error || `HTTP ${r.status}` });
           return;
         }
         setData(body as FloodScoreResponse);
       })
-      .catch((e) => {
-        if (!cancelled) setError(`Network error: ${e?.message ?? e}`);
+      .catch(() => {
+        if (!cancelled) setError({ status: 0, message: "Couldn't reach the FloodIQ server." });
       });
     return () => {
       cancelled = true;
     };
   }, [token]);
 
-  if (error) {
-    return (
-      <main className="mx-auto min-h-screen max-w-[480px] bg-paper px-5 py-12 lg:max-w-[1200px] lg:px-12">
-        <header className="mb-8 font-mono text-[11px] font-semibold tracking-[1.6px] text-ink">
-          FLOODIQ
-        </header>
-        <div className="border border-ink bg-surface px-4 py-4">
-          <div className="mb-1 font-mono text-[10px] font-semibold tracking-[1.4px] text-signal">
-            ERROR
-          </div>
-          <div className="font-sans text-[14px] leading-[1.5] text-ink-2">{error}</div>
-          <a
-            href="/"
-            className="mt-3 inline-block font-mono text-[11px] font-medium tracking-[0.6px] text-ink underline underline-offset-4"
-          >
-            ← Try another address
-          </a>
-        </div>
-      </main>
-    );
-  }
-
-  if (!data) {
-    return (
-      <main className="mx-auto min-h-screen max-w-[480px] bg-paper px-5 py-12 lg:max-w-[1200px] lg:px-12">
-        <div className="font-mono text-[11px] tracking-[1.4px] text-ink-3">LOADING…</div>
-      </main>
-    );
-  }
+  if (error) return <ResultError status={error.status} message={error.message} />;
+  if (!data) return <ResultSkeleton />;
 
   const approximate = data.geocoder_match_is_approximate;
-  const horizons: HorizonScore[] = [
-    data.horizons["10"],
-    data.horizons["30"],
-    data.horizons["100"],
-  ];
+  const horizons: HorizonScore[] = [data.horizons["10"], data.horizons["30"], data.horizons["100"]];
+  const coverage = data.noaa_data_available
+    ? "Sea-level rise projected here"
+    : data.noaa_region_covered
+      ? "No projected inundation here"
+      : "Outside NOAA coverage";
+  const scoredOn = new Date(data.scored_at).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[480px] bg-paper pb-16 lg:max-w-[1200px] lg:pb-24">
-      <header className="flex items-baseline justify-between px-5 pt-3 font-mono text-[11px] font-semibold tracking-[1.6px] text-ink lg:px-12 lg:pt-8 lg:text-[12px]">
-        <a href="/" className="text-ink underline-offset-4 hover:underline">
-          FLOODIQ
-        </a>
-        <span className="text-[10px] font-medium text-ink-3 lg:text-[11px]">
-          METHOD V{data.methodology_version}
-        </span>
-      </header>
+    <div className="min-h-screen">
+      <SiteHeader />
 
-      {/* Matched address block */}
-      <section className="mx-5 mt-6 border-b border-ink bg-surface px-4 py-4 lg:mx-12 lg:mt-10 lg:px-6 lg:py-6">
-        <div className="mb-2 flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:text-[11px]">
-          <PinIcon size={12} />
-          MATCHED · {approximate ? "APPROXIMATE" : "ROOFTOP"}
-        </div>
-        <h1 className="font-sans text-[22px] font-medium leading-[1.15] tracking-[-0.6px] text-ink lg:text-[30px] lg:tracking-[-1px]">
-          {data.matched_address}
-        </h1>
-        <div className="mt-1 font-sans text-[13px] text-ink-2 lg:text-[14px]">
-          {data.county_name}
-          {" · "}
-          <span className="font-mono text-[11px] tracking-[0.5px] text-ink-3">
-            {data.is_inland ? "INLAND" : data.noaa_region_covered ? "COASTAL" : "OUTSIDE NOAA COVERAGE"}
-          </span>
-        </div>
-        {approximate && (
-          <div className="mt-3 flex items-start gap-2 border border-signal border-l-[3px] bg-paper px-3 py-2">
-            <WarnIcon size={14} className="mt-0.5 text-signal" />
-            <div className="font-sans text-[12px] leading-[1.45] text-ink-2">
-              <span className="font-mono text-[10px] font-semibold tracking-[1.2px] text-signal">
-                APPROX
-              </span>{" "}
-              Approximate location. Verify this matches the property you&apos;re
-              researching.
+      <main>
+        {/* Address band */}
+        <section className="contours border-b border-ink/10">
+          <div className="mx-auto grid w-full max-w-[1160px] gap-8 px-4 pt-8 pb-10 sm:px-6 sm:pt-12 lg:grid-cols-12 lg:gap-10">
+            <div className="rise flex min-w-0 flex-col lg:col-span-6">
+              <Kicker>Flood risk report, {scoredOn}</Kicker>
+              <h1 className="mt-4 break-words font-display text-[28px] font-bold leading-[1.08] tracking-[-0.9px] text-ink text-balance sm:text-[38px] sm:tracking-[-1.3px]">
+                {data.matched_address}
+              </h1>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Tag tone={approximate ? "signal" : "ink"}>
+                  {approximate ? "Approximate match" : "Exact match"}
+                </Tag>
+                <Tag>{data.county_name}</Tag>
+                <Tag>{data.fema_zone_raw ? `FEMA Zone ${data.fema_zone_raw}` : "FEMA zone n/a"}</Tag>
+                <Tag>{coverage}</Tag>
+              </div>
+
+              <div className="mt-6 border-l-[3px] border-signal bg-surface px-5 py-4">
+                <p className="text-[16px] leading-[1.55] font-medium text-ink sm:text-[17px]">
+                  {data.summary_headline}
+                </p>
+                {data.inland_note && (
+                  <details className="group mt-2">
+                    <summary className="inline-flex min-h-[32px] cursor-pointer list-none items-center gap-1 text-[13px] font-medium text-accent">
+                      <span className="group-open:hidden">Why? Read the data note</span>
+                      <span className="hidden group-open:inline">Hide data note</span>
+                    </summary>
+                    <p className="mt-1 text-[13.5px] leading-[1.6] text-ink-3">{data.inland_note}</p>
+                  </details>
+                )}
+              </div>
+
+              <a
+                href={apiUrl(`/report/${data.score_id}.pdf`)}
+                target="_blank"
+                rel="noreferrer"
+                className="group mt-5 flex min-h-[56px] items-center justify-between gap-4 border-2 border-ink bg-ink px-5 py-3 text-white transition hover:bg-accent-deep"
+              >
+                <div>
+                  <div className="text-[15px] font-semibold">Download the full report</div>
+                  <div className="text-[13px] text-white/60">3-page PDF with sources and disclaimers</div>
+                </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-signal text-ink transition-transform group-hover:translate-y-0.5">
+                  <DownloadIcon size={16} />
+                </span>
+              </a>
+            </div>
+
+            <div className="rise min-w-0 lg:col-span-6" style={{ animationDelay: "80ms" }}>
+              <ConfirmationMap lat={data.latitude} lon={data.longitude} approximate={approximate} height={340} />
             </div>
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* Confirmation map */}
-      <section className="mx-5 mt-4 lg:mx-12 lg:mt-6">
-        <ConfirmationMap
-          lat={data.latitude}
-          lon={data.longitude}
-          approximate={approximate}
-          height={240}
-        />
-      </section>
+        <div className="mx-auto w-full max-w-[1160px] px-4 sm:px-6">
+          {/* Horizons */}
+          <section className="mt-12 sm:mt-16">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <Kicker>Risk over time</Kicker>
+                <h2 className="mt-3 font-display text-[26px] font-bold tracking-[-0.7px] text-ink sm:text-[30px]">
+                  How this home compares over time
+                </h2>
+              </div>
+            </div>
+            <HorizonExplorer
+              horizons={horizons}
+              scoredAt={data.scored_at}
+              countyName={data.county_name}
+              femaZone={data.fema_zone_raw}
+            />
+          </section>
 
-      {/* Headline summary */}
-      <section className="mx-5 mt-4 border border-line-soft bg-surface px-4 py-4 lg:mx-12 lg:mt-6 lg:px-6 lg:py-6">
-        <div className="font-sans text-[15px] leading-[1.5] text-ink-2 lg:text-[18px] lg:leading-[1.45]">
-          {data.summary_headline}
+          {/* Sources + how to read */}
+          <section className="mt-14 grid gap-6 lg:grid-cols-12">
+            <div className="min-w-0 border-2 border-ink bg-surface lg:col-span-7">
+              <h2 className="border-b-2 border-ink px-5 py-3.5 font-display text-[17px] font-bold text-ink sm:px-6">
+                Source data
+              </h2>
+              <dl className="divide-y divide-ink/10">
+                <SourceRow label="FEMA flood zone" value={data.fema_zone_raw ? `Zone ${data.fema_zone_raw}` : "Not available"} />
+                <SourceRow
+                  label="FEMA map age"
+                  value={data.fema_map_age_years != null ? `${data.fema_map_age_years.toFixed(1)} years` : "Unknown"}
+                  flag={
+                    data.fema_map_age_years != null && data.fema_map_age_years > 5
+                      ? "Older than 5 years, so confidence is reduced"
+                      : undefined
+                  }
+                />
+                <SourceRow
+                  label="NOAA sea-level rise"
+                  value={
+                    data.noaa_data_available
+                      ? "Inundation projected at this location"
+                      : data.noaa_region_covered
+                        ? "Covered region, no projected inundation here"
+                        : "Outside coverage, FEMA data only"
+                  }
+                />
+                <SourceRow
+                  label="Location match"
+                  value={approximate ? "Approximate (OpenStreetMap fallback)" : "Exact (U.S. Census geocoder)"}
+                  flag={approximate ? "Approximate match, so confidence is reduced" : undefined}
+                />
+                <SourceRow label="Coordinates" value={`${data.latitude.toFixed(5)}, ${data.longitude.toFixed(5)}`} mono />
+              </dl>
+            </div>
+
+            <div className="min-w-0 lg:col-span-5">
+              <h2 className="font-display text-[17px] font-bold text-ink">How to read this report</h2>
+              <div className="mt-2 divide-y divide-ink/10 border-y border-ink/15">
+                <Explainer title="County percentile">
+                  Ranks this address against locations we sampled across {data.county_name}. The
+                  50th percentile is the middle of the county. When most of the county scores
+                  exactly the same, we say &ldquo;typical for this county&rdquo; instead, because a
+                  ranking among identical scores doesn&apos;t mean much.
+                </Explainer>
+                <Explainer title="Confidence">
+                  Drops when FEMA and NOAA disagree, when maps are old, or when the address could only be
+                  located approximately. Treat a high score with low confidence with caution.
+                </Explainer>
+                <Explainer title="Raw score">
+                  The underlying 0–100 composite before ranking: FEMA&apos;s zone hazard, blended with
+                  NOAA&apos;s projection more heavily at longer horizons.
+                </Explainer>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-14 border-2 border-ink bg-surface p-5 sm:p-7">
+            <div className="mb-3 font-display text-[18px] font-bold text-ink">Check another address</div>
+            <AddressForm />
+          </section>
         </div>
-      </section>
+      </main>
 
-      {/* Horizon cards — stacked on mobile, 3-col on desktop */}
-      <section className="mx-5 mt-3 grid gap-3 lg:mx-12 lg:mt-6 lg:grid-cols-3 lg:gap-6">
-        {horizons.map((h, i) => (
-          <HorizonCard
-            key={h.horizon_years}
-            h={h}
-            index={i}
-            total={horizons.length}
-            countyName={data.county_name}
-          />
-        ))}
-      </section>
-
-      {/* PDF CTA */}
-      <a
-        href={apiUrl(`/report/${data.score_id}.pdf`)}
-        className="mx-5 mt-6 flex items-center justify-between bg-ink px-4 py-4 text-surface no-underline lg:mx-12 lg:mt-10 lg:px-6 lg:py-5"
-      >
-        <div>
-          <div className="font-sans text-[15px] font-medium leading-tight lg:text-[17px]">
-            Download full report
-          </div>
-          <div className="mt-0.5 font-mono text-[10px] tracking-[1px] text-ink-4 lg:text-[11px]">
-            PDF · 3 PAGES
-          </div>
-        </div>
-        <DownloadIcon size={18} />
-      </a>
-
-      {/* How to read this score */}
-      <details className="group mx-5 mt-6 border border-ink bg-surface lg:mx-12 lg:mt-10">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 font-sans text-[13px] font-medium text-ink lg:px-6 lg:py-4 lg:text-[14px]">
-          <span className="flex items-center gap-2">
-            <InfoIcon size={14} />
-            How to read this score
-          </span>
-          <span className="text-ink-3 group-open:hidden">＋</span>
-          <span className="hidden text-ink-3 group-open:inline">−</span>
-        </summary>
-        <div className="px-4 pb-4 font-sans text-[12.5px] leading-[1.55] text-ink-2 lg:px-6 lg:pb-5 lg:text-[14px]">
-          <p className="mb-2">
-            <b className="font-semibold text-ink">County percentile</b> compares this address to other residential properties in {data.county_name}. 50 is the county median; a 78 means this address has higher modeled flood risk than 78% of the county.
-          </p>
-          <p>
-            <b className="font-semibold text-ink">Confidence</b> reflects FEMA/NOAA agreement plus source-data age. A high score with low confidence should be read with caution — and that&apos;s why we surface the caveats on each horizon card.
-          </p>
-        </div>
-      </details>
-
-      {/* Source data */}
-      <section className="mx-5 mt-4 border border-ink bg-surface lg:mx-12 lg:mt-6">
-        <div className="border-b border-line px-4 py-3 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:px-6 lg:py-4 lg:text-[11px]">
-          SOURCE DATA / FOR THIS ADDRESS
-        </div>
-        <dl className="divide-y divide-line-soft">
-          <SourceRow label="FEMA NFHL" value={`Zone ${data.fema_zone_raw ?? "—"}`} />
-          <SourceRow
-            label="FEMA map age"
-            value={
-              data.fema_map_age_years != null
-                ? `${data.fema_map_age_years.toFixed(1)} years`
-                : "unknown"
-            }
-            flag={
-              data.fema_map_age_years != null && data.fema_map_age_years > 5
-                ? "Older than 5 years — confidence penalty applied"
-                : undefined
-            }
-          />
-          <SourceRow
-            label="NOAA SLR"
-            value={
-              data.noaa_data_available
-                ? "Coastal SLR projection applied"
-                : data.noaa_region_covered
-                  ? "Coverage available, no inundation at this point"
-                  : "Outside coverage — FEMA only"
-            }
-          />
-          <SourceRow
-            label="Geocode"
-            value={
-              data.geocoder_match_is_approximate
-                ? "Approximate (OSM fallback)"
-                : "Rooftop (Census)"
-            }
-          />
-        </dl>
-      </section>
-
-      <footer className="mx-5 mt-10 font-mono text-[10px] leading-[1.6] tracking-[0.4px] text-ink-3 lg:mx-12 lg:mt-14 lg:text-[11px]">
-        <div className="mb-1 font-semibold tracking-[1.2px] text-ink lg:tracking-[1.6px]">
-          METHODOLOGY V{data.methodology_version}
-        </div>
-        Not professional advice. FloodIQ is an educational tool; not flood-insurance underwriting and not a substitute for professional flood assessment. See full disclaimers on the PDF report.
-      </footer>
-    </main>
-  );
-}
-
-function HorizonCard({
-  h,
-  index,
-  total,
-  countyName,
-}: {
-  h: HorizonScore;
-  index: number;
-  total: number;
-  countyName: string;
-}) {
-  const pct = Math.round(h.composite_county_percentile);
-  const band = riskColor(pct);
-  const conf = CONFIDENCE[h.confidence_label];
-  const yearLabel = h.horizon_years === 10
-    ? "BY 2036"
-    : h.horizon_years === 30
-      ? "BY 2056"
-      : "BY 2125";
-
-  return (
-    <article className="flex flex-col border border-ink bg-surface-alt shadow-[4px_4px_0_0_rgba(10,10,10,0.06)]">
-      {/* Eyebrow */}
-      <div className="flex items-center justify-between border-b border-line bg-surface-alt px-3 py-2 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink-3">
-        <span>
-          {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")} · +{h.horizon_years} YEARS · {yearLabel}
-        </span>
-        <ConfMeter level={h.confidence_label} />
-      </div>
-
-      {/* Stat */}
-      <div className="grid grid-cols-[auto_1fr] items-end gap-3 bg-surface px-4 py-4">
-        <div className="flex items-start">
-          <span className="font-sans text-[54px] font-medium leading-[0.9] tracking-[-2px] text-ink tabular-nums">
-            {pct}
-          </span>
-          <span className="ml-0.5 mt-1 font-sans text-[18px] font-medium text-ink-2">
-            {ordinalSuffix(pct)}
-          </span>
-        </div>
-        <div className="flex flex-col items-start gap-2">
-          <div className="font-sans text-[13px] leading-[1.3] text-ink-2">
-            percentile in
-            <br />
-            <span className="text-ink">{countyName}</span>
-          </div>
-          <span
-            className="px-2 py-1 font-mono text-[10px] font-semibold tracking-[1.2px]"
-            style={{ backgroundColor: band.fill, color: band.ink }}
-          >
-            {band.label.toUpperCase()} RISK
-          </span>
-        </div>
-      </div>
-
-      {/* Histogram tray */}
-      <div className="border-y border-line bg-paper-alt px-3 pt-2 pb-1">
-        <div className="flex items-center justify-between px-2 pb-1 font-mono text-[9px] font-medium tracking-[1.2px] text-ink-2">
-          <span>▼ THIS ADDRESS</span>
-          <span>COUNTY DISTRIBUTION</span>
-        </div>
-        <DistHistogram percentile={pct} conf={h.confidence_label} />
-      </div>
-
-      {/* Footer details */}
-      <div className="grid grid-cols-3 divide-x divide-line-soft bg-surface px-2 py-3">
-        <FootStat label="NATIONAL" value={`${Math.round(h.composite_national_percentile)}${ordinalSuffix(Math.round(h.composite_national_percentile))}`} />
-        <FootStat label="RAW" value={`${Math.round(h.composite_absolute)}/100`} />
-        <FootStat label="CONF." value={conf.desc} />
-      </div>
-
-      {/* Caveat row */}
-      {h.confidence_drivers.length > 0 && (
-        <div className="grid grid-cols-[auto_1fr] gap-2 border-t border-line bg-surface-alt px-3 py-2.5">
-          <span className="font-mono text-[10px] font-semibold tracking-[1.2px] text-ink-3">
-            ↘ CAVEAT
-          </span>
-          <span className="font-sans text-[12px] leading-[1.4] text-ink-2">
-            {h.confidence_drivers.join("; ")}
-          </span>
-        </div>
-      )}
-    </article>
-  );
-}
-
-function ConfMeter({ level }: { level: "High" | "Medium" | "Low" }) {
-  const filled = level === "High" ? 3 : level === "Medium" ? 2 : 1;
-  return (
-    <span className="flex items-center gap-1" aria-label={`Confidence: ${level}`}>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className={`h-[5px] w-[12px] border border-ink ${i < filled ? "bg-ink" : "bg-transparent"}`}
-        />
-      ))}
-    </span>
-  );
-}
-
-function FootStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="px-2 text-center first:pl-0 last:pr-0">
-      <div className="mb-0.5 font-mono text-[9px] font-semibold tracking-[1.2px] text-ink-3">
-        {label}
-      </div>
-      <div className="font-sans text-[14px] font-medium tabular-nums text-ink">{value}</div>
+      <SiteFooter version={data.methodology_version} />
     </div>
   );
 }
 
-function SourceRow({
-  label,
-  value,
-  flag,
-}: {
-  label: string;
-  value: string;
-  flag?: string;
-}) {
+function Tag({ children, tone }: { children: React.ReactNode; tone?: "ink" | "signal" }) {
+  const cls =
+    tone === "ink"
+      ? "border-ink bg-ink text-white"
+      : tone === "signal"
+        ? "border-ink bg-signal text-ink"
+        : "border-ink/25 bg-surface text-ink-2";
   return (
-    <div className="grid grid-cols-[120px_1fr] gap-3 px-4 py-3 lg:grid-cols-[160px_1fr] lg:px-6 lg:py-4">
-      <dt className="font-mono text-[10px] font-semibold tracking-[1.2px] text-ink-3 lg:text-[11px]">
-        {label}
-      </dt>
-      <dd className="font-sans text-[13px] leading-[1.4] text-ink-2 lg:text-[14px]">
-        <span className={flag ? "text-signal" : undefined}>{value}</span>
-        {flag && (
-          <div className="mt-0.5 font-mono text-[10px] tracking-[0.4px] text-signal">
-            {flag}
-          </div>
-        )}
+    <span className={`inline-flex items-center border px-2.5 py-1 text-[12.5px] font-medium leading-tight ${cls}`}>
+      {children}
+    </span>
+  );
+}
+
+function Explainer({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <details className="group">
+      <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 py-3 text-[14.5px] font-medium text-ink">
+        {title}
+        <span
+          aria-hidden
+          className="flex h-6 w-6 shrink-0 items-center justify-center border border-ink/30 font-mono text-[13px] transition-transform group-open:rotate-45"
+        >
+          +
+        </span>
+      </summary>
+      <p className="pb-4 text-[14px] leading-[1.6] text-ink-2">{children}</p>
+    </details>
+  );
+}
+
+function SourceRow({ label, value, flag, mono }: { label: string; value: string; flag?: string; mono?: boolean }) {
+  return (
+    <div className="grid gap-1 px-5 py-3.5 transition-colors hover:bg-surface-2/60 sm:grid-cols-[170px_1fr] sm:gap-4 sm:px-6">
+      <dt className="text-[13.5px] text-ink-3">{label}</dt>
+      <dd className="min-w-0 break-words text-[14.5px] text-ink">
+        <span className={mono ? "font-mono text-[13px]" : undefined}>{value}</span>
+        {flag && <div className="mt-0.5 text-[12.5px] text-warn">{flag}</div>}
       </dd>
     </div>
   );
 }
 
+function ResultSkeleton() {
+  return (
+    <div className="min-h-screen">
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-[1160px] animate-pulse px-4 pt-10 sm:px-6" aria-busy="true" aria-label="Loading result">
+        <div className="grid gap-8 lg:grid-cols-12">
+          <div className="lg:col-span-6">
+            <div className="h-4 w-48 bg-ink/10" />
+            <div className="mt-5 h-10 w-full bg-ink/10" />
+            <div className="mt-2 h-10 w-2/3 bg-ink/10" />
+            <div className="mt-6 h-24 bg-ink/10" />
+          </div>
+          <div className="h-[340px] bg-ink/10 lg:col-span-6" />
+        </div>
+        <div className="mt-14 h-96 bg-ink/10" />
+      </main>
+    </div>
+  );
+}
+
+function ResultError({ status, message }: { status: number; message: string }) {
+  const notFound = status === 404;
+  return (
+    <div className="min-h-screen">
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-[680px] px-4 pt-16 sm:px-6">
+        <Kicker>{notFound ? "Not found" : "Error"}</Kicker>
+        <h1 className="mt-4 font-display text-[32px] font-bold tracking-[-1px] text-ink">
+          {notFound ? "This report doesn't exist." : "We couldn't load this report."}
+        </h1>
+        <p className="mt-3 text-[15px] leading-[1.6] text-ink-2">
+          {notFound
+            ? "The link may be mistyped, or the report may have been cleared from the server. Run a new lookup below."
+            : message}
+        </p>
+        <div className="mt-8">
+          <AddressForm />
+        </div>
+      </main>
+    </div>
+  );
+}

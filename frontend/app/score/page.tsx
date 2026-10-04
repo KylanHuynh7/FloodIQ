@@ -2,11 +2,31 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { Kicker, SiteHeader } from "@/components/chrome";
+import { CheckIcon } from "@/components/icons";
 import { apiUrl } from "@/lib/api";
 
 type Step = "pending" | "running" | "done";
+type ErrorKind = "notfound" | "unsupported" | "upstream" | "ratelimit" | "server";
 
-const STEPS = ["Geocode address", "FEMA flood map", "NOAA sea-level", "County baseline"] as const;
+const STEPS = [
+  { label: "Finding the address", detail: "U.S. Census geocoder" },
+  { label: "Reading the FEMA flood map", detail: "National Flood Hazard Layer" },
+  { label: "Checking sea-level projections", detail: "NOAA sea-level rise, 2022" },
+  { label: "Comparing with the county", detail: "Local baseline" },
+] as const;
+
+// Map backend responses to a user-facing error category. The backend
+// returns the same 200 + `error` shape for every pipeline failure, so we
+// key off the message text for the categories that need different copy.
+function classify(status: number, message: string): ErrorKind {
+  if (status === 429) return "ratelimit";
+  if (status >= 500) return "server";
+  const m = message.toLowerCase();
+  if (m.includes("did not respond") || m.includes("try again")) return "upstream";
+  if (m.includes("continental") || m.includes("sufficient public data")) return "unsupported";
+  return "notfound";
+}
 
 function ScoringInner() {
   const router = useRouter();
@@ -17,26 +37,23 @@ function ScoringInner() {
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
 
-  // Tick elapsed seconds.
   useEffect(() => {
     const id = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Kick the score call once.
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    if (!address) {
-      setError("No address provided.");
+    if (!address.trim()) {
+      router.replace("/");
       return;
     }
 
-    const goError = (reason: string) => {
-      router.replace(
-        `/error-page?address=${encodeURIComponent(address)}&reason=${encodeURIComponent(reason)}`,
-      );
+    const goError = (kind: ErrorKind, reason: string) => {
+      const q = new URLSearchParams({ address, kind, reason });
+      router.replace(`/error-page?${q.toString()}`);
     };
 
     fetch(apiUrl("/api/score"), {
@@ -53,187 +70,173 @@ function ScoringInner() {
           /* not JSON */
         }
         if (!r.ok) {
-          goError(data?.detail || data?.error || text || `HTTP ${r.status}`);
+          const msg = data?.detail || data?.error || `HTTP ${r.status}`;
+          goError(classify(r.status, msg), msg);
           return;
         }
-        if (!data) {
-          setError("Unexpected response from server.");
+        if (data?.error) {
+          goError(classify(r.status, data.error), data.error);
           return;
         }
-        if (data.error) {
-          goError(data.error);
-          return;
-        }
-        if (data.score_id) {
+        if (data?.score_id) {
           router.replace(`/result/${data.score_id}`);
           return;
         }
-        setError("Could not save result.");
+        setError("The score was computed but couldn't be saved. Please try again.");
       })
-      .catch((err) => setError(`Network error: ${err?.message ?? err}`));
+      .catch(() =>
+        goError("upstream", "Couldn't reach the FloodIQ server. Check your connection and try again."),
+      );
   }, [address, router]);
 
-  // Derive step states from elapsed.
-  const stepStates: Step[] = (() => {
-    if (error) return ["done", "done", "done", "done"];
-    const e = elapsed;
-    return [
-      e >= 1 ? "done" : "running",
-      e < 1 ? "pending" : e >= 4 ? "done" : "running",
-      e < 4 ? "pending" : e >= 7 ? "done" : "running",
-      e < 7 ? "pending" : "running",
-    ];
-  })();
-
-  const baselinePhase = elapsed >= 8 && !error;
-  const doneCount = stepStates.filter((s) => s === "done").length;
-
-  const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
-  const ss = String(elapsed % 60).padStart(2, "0");
+  // Progress is time-based (the API is a single long call); the final step
+  // stays "running" until the response actually arrives.
+  const e = elapsed;
+  const stepStates: Step[] = [
+    e >= 1 ? "done" : "running",
+    e < 1 ? "pending" : e >= 4 ? "done" : "running",
+    e < 4 ? "pending" : e >= 7 ? "done" : "running",
+    e < 7 ? "pending" : "running",
+  ];
+  const baselinePhase = elapsed >= 10;
+  // Gauge fill: eases toward full but never claims to be done until the
+  // response arrives (the API is one long call with no progress events).
+  const fill = 1 - Math.exp(-elapsed / 14);
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[480px] bg-paper pb-12 lg:max-w-[760px] lg:pb-24">
-      <header className="flex items-baseline justify-between px-5 pt-3 font-mono text-[11px] font-semibold tracking-[1.6px] text-ink lg:px-10 lg:pt-8 lg:text-[12px]">
-        <span>
-          FLOODIQ <span className="text-ink-3">▸ SCORING</span>
-        </span>
-        <a href="/" className="text-[10px] font-medium text-ink-3 underline-offset-4 hover:underline lg:text-[11px]">
-          CANCEL
-        </a>
-      </header>
+    <div className="min-h-screen">
+      <SiteHeader
+        right={
+          <a href="/" className="px-2 py-2 transition hover:text-ink">
+            Cancel
+          </a>
+        }
+      />
+      <main className="contours min-h-[calc(100vh-56px)]">
+        <div className="mx-auto w-full max-w-[760px] px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
+          <Kicker>Checking this address</Kicker>
+          <h1 className="mt-3 break-words font-display text-[26px] font-bold leading-[1.15] tracking-[-0.8px] text-ink sm:text-[34px]">
+            {address || "—"}
+          </h1>
 
-      <section className="px-5 pt-10 pb-2 lg:px-10 lg:pt-16">
-        <div className="mb-3.5 font-mono text-[10px] font-semibold tracking-[1.6px] text-ink-3 lg:text-[11px] lg:tracking-[2px]">
-          SCORING ADDRESS
-        </div>
-        <h1 className="font-sans text-[19px] font-medium leading-[1.25] tracking-[-0.5px] text-ink lg:text-[24px] lg:tracking-[-0.8px]">
-          {address || "—"}
-        </h1>
-      </section>
+          <section
+            aria-live="polite"
+            className="mt-8 grid border-2 border-ink bg-surface shadow-[6px_6px_0_0_#0f2430] sm:grid-cols-[120px_1fr]"
+          >
+            <TideGauge fill={fill} elapsed={elapsed} />
+            <ol className="divide-y divide-ink/10 px-5 sm:px-6">
+              {STEPS.map((s, i) => (
+                <StatusStep key={s.label} {...s} index={i} state={stepStates[i]} />
+              ))}
+            </ol>
+          </section>
 
-      {/* Elapsed block */}
-      <section className="mx-5 mt-6 grid grid-cols-[auto_1fr] items-end gap-6 border border-ink bg-surface px-4 py-4 lg:mx-10 lg:mt-8 lg:px-6 lg:py-6">
-        <div>
-          <div className="mb-1 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink-3 lg:text-[11px]">
-            ELAPSED
-          </div>
-          <div className="font-mono text-[44px] font-semibold leading-none tracking-[-1px] text-ink tabular-nums lg:text-[56px]">
-            {mm}:{ss}
-          </div>
-        </div>
-        <BarSpinner />
-      </section>
-
-      {/* Pipeline card */}
-      <section className="mx-5 mt-3 border border-ink bg-surface px-4 py-4 lg:mx-10 lg:px-6 lg:py-6">
-        <div className="mb-3 flex items-baseline justify-between font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:text-[11px]">
-          <span>PIPELINE</span>
-          <span className="text-ink-3">
-            {doneCount} / {STEPS.length}
-          </span>
-        </div>
-        <ul className="flex flex-col">
-          {STEPS.map((label, i) => (
-            <StatusStep key={label} label={label} state={stepStates[i]} />
-          ))}
-        </ul>
-      </section>
-
-      {/* Message box */}
-      <section
-        className={`mx-5 mt-3 border border-ink bg-surface px-4 py-3.5 lg:mx-10 ${
-          baselinePhase ? "border-l-[3px] border-l-signal" : "border-l-[3px] border-l-ink"
-        }`}
-      >
-        {error ? (
-          <>
-            <div className="mb-1 font-mono text-[10px] font-semibold tracking-[1.4px] text-signal lg:text-[11px]">
-              ERROR
+          {error ? (
+            <div className="mt-5 border-2 border-danger bg-danger-soft px-5 py-4 text-[14.5px] text-ink-2">
+              <div className="font-semibold text-danger">Something went wrong</div>
+              <p className="mt-1">{error}</p>
+              <a href="/" className="mt-2 inline-block font-medium text-accent underline underline-offset-4">
+                Try another address
+              </a>
             </div>
-            <div className="font-sans text-[14px] leading-[1.5] text-ink-2">{error}</div>
-            <a
-              href="/"
-              className="mt-2 inline-block font-mono text-[11px] font-medium tracking-[0.6px] text-ink underline underline-offset-4"
+          ) : (
+            <div
+              className={`mt-5 border-l-[3px] px-5 py-4 text-[14.5px] leading-[1.6] transition-colors ${
+                baselinePhase ? "border-signal bg-signal-soft text-ink-2" : "border-ink/20 bg-surface/70 text-ink-3"
+              }`}
             >
-              ← Try another address
-            </a>
-          </>
-        ) : !baselinePhase ? (
-          <>
-            <div className="mb-1 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:text-[11px]">
-              WORKING
+              {baselinePhase ? (
+                <>
+                  <div className="font-semibold text-ink">First lookup in this county</div>
+                  <p className="mt-1">
+                    We&apos;re scoring a sample of nearby Census tracts to build a
+                    local comparison baseline. This happens once per county and
+                    usually takes 30 seconds to 2 minutes. Later lookups are fast.
+                  </p>
+                </>
+              ) : (
+                <p>Most lookups finish in a few seconds.</p>
+              )}
             </div>
-            <div className="font-sans text-[14px] leading-[1.5] text-ink-2">
-              Looking up FEMA flood data for this address. This usually takes a few seconds.
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="mb-1 font-mono text-[10px] font-semibold tracking-[1.4px] text-signal lg:text-[11px]">
-              FIRST LOOKUP IN THIS AREA
-            </div>
-            <div className="font-sans text-[14px] leading-[1.5] text-ink-2">
-              Building a county comparison baseline. One-time per county, instant after that. Expect 30 s – 3 min.
-            </div>
-          </>
-        )}
-      </section>
-
-      <div className="mt-8 text-center">
-        <a
-          href="/"
-          className="inline-block border-b border-ink pb-0.5 font-sans text-[13px] font-medium text-ink"
-        >
-          ← Cancel and go back
-        </a>
-      </div>
-    </main>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
 
-function StatusStep({ label, state }: { label: string; state: Step }) {
-  const glyph = state === "done" ? "✓" : state === "running" ? "◐" : "○";
+function TideGauge({ fill, elapsed }: { fill: number; elapsed: number }) {
+  const mm = String(Math.floor(elapsed / 60));
+  const ss = String(elapsed % 60).padStart(2, "0");
   return (
-    <li className="grid grid-cols-[22px_1fr] items-center gap-2 border-b border-line-soft py-2.5 last:border-b-0">
+    <div className="relative flex h-24 items-end overflow-hidden border-b-2 border-ink bg-surface-2 sm:h-auto sm:min-h-[280px] sm:border-r-2 sm:border-b-0">
+      {/* water column (vertical on desktop, horizontal on mobile) */}
+      <div
+        className="absolute inset-y-0 left-0 bg-water/80 transition-[width] duration-1000 ease-out sm:hidden"
+        style={{ width: `${fill * 100}%` }}
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-b from-water to-accent transition-[height] duration-1000 ease-out sm:block"
+        style={{ height: `${fill * 100}%` }}
+      >
+        <svg className="absolute -top-[7px] left-0 h-2 w-[200%]" viewBox="0 0 240 8" preserveAspectRatio="none" style={{ animation: "floodiq-wave 3s linear infinite" }} aria-hidden>
+          <path d="M0 4 q 15 -4 30 0 t 30 0 t 30 0 t 30 0 t 30 0 t 30 0 t 30 0 t 30 0 V 8 H 0 Z" fill="#3f8ea6" />
+        </svg>
+      </div>
+      {/* staff ticks */}
+      <div className="pointer-events-none absolute inset-y-3 right-3 hidden flex-col justify-between sm:flex" aria-hidden>
+        {Array.from({ length: 9 }).map((_, i) => (
+          <span key={i} className={`h-px bg-ink/50 ${i % 2 ? "w-2" : "w-4"}`} />
+        ))}
+      </div>
+      <div className="relative z-10 p-4">
+        <div className="text-[13px] font-semibold text-ink-2">Elapsed</div>
+        <div className="font-display text-[32px] font-bold leading-none tabular-nums text-ink">
+          {mm}:{ss}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusStep({
+  label,
+  detail,
+  index,
+  state,
+}: {
+  label: string;
+  detail: string;
+  index: number;
+  state: Step;
+}) {
+  return (
+    <li className="flex items-center gap-4 py-4">
       <span
-        className={`font-mono text-[14px] leading-none ${
-          state === "pending" ? "text-ink-3 opacity-60" : "text-ink"
-        } ${state === "running" ? "animate-[spin_2.4s_linear_infinite]" : ""}`}
+        className={`flex h-7 w-7 shrink-0 items-center justify-center border-2 font-display text-[13px] font-bold transition-colors ${
+          state === "done"
+            ? "border-ink bg-ink text-white"
+            : state === "running"
+              ? "border-ink bg-signal text-ink"
+              : "border-ink/25 text-ink-4"
+        }`}
         aria-hidden
       >
-        {glyph}
+        {state === "done" ? <CheckIcon size={13} /> : index + 1}
       </span>
-      <span
-        className={`font-sans text-[13px] leading-[1.4] ${
-          state === "pending" ? "text-ink-3" : "text-ink-2"
-        }`}
-      >
-        {label}
+      <div className="min-w-0 flex-1">
+        <div className={`text-[15px] font-medium ${state === "pending" ? "text-ink-4" : "text-ink"}`}>
+          {label}
+        </div>
+        <div className="text-[13px] text-ink-4">{detail}</div>
+      </div>
+      {state === "running" && (
+        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-signal" aria-hidden />
+      )}
+      <span className="sr-only">
+        {state === "done" ? "complete" : state === "running" ? "in progress" : "pending"}
       </span>
     </li>
-  );
-}
-
-function BarSpinner() {
-  return (
-    <div className="flex h-6 items-end justify-end gap-1.5" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="block h-full w-1 origin-bottom bg-ink"
-          style={{
-            animation: "floodiq-pulse 1.2s ease-in-out infinite",
-            animationDelay: `${i * 0.2}s`,
-          }}
-        />
-      ))}
-      <style>{`
-        @keyframes floodiq-pulse {
-          0%, 100% { transform: scaleY(0.3); opacity: 0.45; }
-          50%      { transform: scaleY(1);   opacity: 1; }
-        }
-      `}</style>
-    </div>
   );
 }
 

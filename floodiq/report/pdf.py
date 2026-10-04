@@ -17,7 +17,8 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from floodiq.pipeline import ScoreReport
+from floodiq.baseline.county import is_typical_for_county
+from floodiq.pipeline import ScoreReport, hazard_level
 from floodiq.report.disclaimers import DISCLAIMER_BULLETS, METHODOLOGY_FOOTER
 
 
@@ -71,7 +72,9 @@ def _page_1_headline(report, h1, h2, body):
     for h in (10, 30, 100):
         hr = report.horizons[h]
         county = (
-            f"{hr.composite_county_percentile:.0f}"
+            f"typical ({hazard_level(hr.composite_absolute).lower()})"
+            if is_typical_for_county(hr.county_tie_share)
+            else f"{hr.composite_county_percentile:.0f}"
             if hr.composite_county_percentile is not None
             else "pending"
         )

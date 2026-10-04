@@ -1,154 +1,143 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { AddressForm, Kicker, SiteFooter, SiteHeader } from "@/components/chrome";
 import { ArrowIcon } from "@/components/icons";
+import { WaterLevelExplorer } from "@/components/WaterLevelExplorer";
+import { METHODOLOGY_URL } from "@/lib/tokens";
 
-function HorizonChip({ label, sub }: { label: string; sub: string }) {
-  return (
-    <div className="flex-1 min-w-0 border border-ink bg-surface px-2.5 py-2.5">
-      <div className="font-sans text-[18px] font-semibold leading-none tracking-[-0.5px] text-ink">
-        {label}
-      </div>
-      <div className="mt-1 font-mono text-[9px] font-medium tracking-[0.8px] text-ink-3">
-        {sub}
-      </div>
-    </div>
-  );
-}
+const EXAMPLES = [
+  { label: "The White House, DC", address: "1600 Pennsylvania Ave NW, Washington, DC 20500" },
+  { label: "East Bay St, Charleston", address: "100 East Bay St, Charleston, SC 29401" },
+];
+
+const STEPS = [
+  {
+    n: "01",
+    title: "Locate",
+    body: "We geocode the address with the U.S. Census, falling back to OpenStreetMap and flagging the match as approximate when we do.",
+  },
+  {
+    n: "02",
+    title: "Measure",
+    body: "FEMA's flood zone sets today's hazard. NOAA's sea-level-rise rasters add what the coast is projected to do over the next century.",
+  },
+  {
+    n: "03",
+    title: "Rank",
+    body: "Each horizon is ranked against sampled homes in the same county and nationally, with a confidence rating that drops when the data is weak.",
+  },
+];
 
 export default function LandingPage() {
-  const router = useRouter();
-  const [addr, setAddr] = useState("");
-  const canSubmit = addr.trim().length > 4;
-
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!canSubmit) return;
-    router.push(`/score?address=${encodeURIComponent(addr.trim())}`);
-  }
-
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[480px] bg-paper pb-12 lg:max-w-[1200px] lg:pb-24">
-      <header className="flex items-baseline justify-between px-5 pt-3 font-mono text-[11px] font-semibold tracking-[1.6px] text-ink lg:px-12 lg:pt-8 lg:text-[12px]">
-        <span>FLOODIQ</span>
-        <span className="text-[10px] font-medium text-ink-3 lg:text-[11px]">
-          METHOD V1.1
-        </span>
-      </header>
+    <div className="min-h-screen">
+      <SiteHeader />
 
-      {/* Hero — single column on mobile, 12-col grid on desktop */}
-      <div className="lg:grid lg:grid-cols-12 lg:gap-12 lg:px-12 lg:pt-20">
-        <section className="px-5 pt-10 pb-2 lg:col-span-7 lg:px-0 lg:pt-0">
-          <div className="mb-3.5 font-mono text-[10px] font-semibold tracking-[1.6px] text-signal lg:mb-5 lg:text-[11px] lg:tracking-[2px]">
-            FLOOD-RISK SCORING
+      <main>
+        <section className="contours relative border-b border-ink/10">
+          <div className="mx-auto grid w-full max-w-[1160px] gap-12 px-4 pt-10 pb-14 sm:px-6 sm:pt-14 lg:grid-cols-12 lg:gap-14 lg:pt-20 lg:pb-24">
+            <div className="lg:col-span-7">
+              <Kicker className="rise">Flood risk for any U.S. home</Kicker>
+              <h1
+                className="rise mt-5 font-display text-[38px] font-bold leading-[1.02] tracking-[-1.5px] text-ink text-balance sm:text-[52px] lg:text-[64px] lg:tracking-[-2.5px]"
+                style={{ animationDelay: "60ms" }}
+              >
+                Know where the water{" "}
+                <span className="relative whitespace-nowrap">
+                  <span className="relative z-10">will reach.</span>
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 bottom-[0.08em] z-0 h-[0.28em] bg-signal/80"
+                  />
+                </span>
+              </h1>
+              <p
+                className="rise mt-5 max-w-[540px] text-[16.5px] leading-[1.6] text-ink-2 text-pretty sm:text-[18px]"
+                style={{ animationDelay: "120ms" }}
+              >
+                FloodIQ reads FEMA flood maps and NOAA sea-level projections for
+                any U.S. home, then tells you how it compares to the rest of its
+                county, now and 10, 30 and 100 years out.
+              </p>
+
+              <div className="rise mt-8 max-w-[620px]" style={{ animationDelay: "180ms" }}>
+                <AddressForm autoFocus />
+                <p className="mt-3 text-[13px] leading-[1.5] text-ink-3">
+                  Include city and state. A first lookup in a new county builds a
+                  local baseline and can take up to a minute.
+                </p>
+                <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px]">
+                  <span className="text-ink-3">Try one:</span>
+                  {EXAMPLES.map((ex) => (
+                    <a
+                      key={ex.address}
+                      href={`/score?address=${encodeURIComponent(ex.address)}`}
+                      className="group inline-flex min-h-[32px] items-center gap-1.5 font-medium text-accent underline decoration-accent/30 underline-offset-4 transition hover:decoration-signal hover:decoration-2"
+                    >
+                      {ex.label}
+                      <ArrowIcon size={12} className="transition-transform group-hover:translate-x-0.5" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="rise lg:col-span-5 lg:pt-2" style={{ animationDelay: "240ms" }}>
+              <WaterLevelExplorer />
+            </div>
           </div>
-          <h1 className="font-sans text-[32px] font-medium leading-[1.05] tracking-[-1.5px] text-ink text-balance lg:text-[56px] lg:leading-[1.02] lg:tracking-[-2.5px]">
-            How exposed is your address to flooding — now and through 2125?
-          </h1>
-          <p className="mt-3.5 font-sans text-[14px] leading-[1.5] text-ink-2 text-pretty lg:mt-6 lg:max-w-[520px] lg:text-[17px] lg:leading-[1.55]">
-            FloodIQ scores any U.S. residential address against FEMA flood maps
-            and NOAA sea-level projections across three time horizons.
-          </p>
         </section>
 
-        <section className="px-5 pt-6 pb-1.5 lg:col-span-5 lg:px-0 lg:pt-0">
-          <label
-            htmlFor="addr"
-            className="mb-1.5 block font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:text-[11px] lg:tracking-[1.6px]"
+        <section className="mx-auto w-full max-w-[1160px] px-4 py-16 sm:px-6 lg:py-24">
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <Kicker>How it works</Kicker>
+              <h2 className="mt-4 font-display text-[28px] font-bold leading-[1.1] tracking-[-0.8px] text-ink sm:text-[34px]">
+                Two federal datasets. One straight answer.
+              </h2>
+              <p className="mt-4 text-[15px] leading-[1.6] text-ink-3">
+                Every score ships with a confidence label, because old maps and
+                approximate locations deserve less trust.
+              </p>
+            </div>
+            <ol className="grid border-t-2 border-ink sm:grid-cols-3 lg:col-span-8">
+              {STEPS.map((s) => (
+                <li
+                  key={s.n}
+                  className="group border-b border-ink/15 py-6 transition-colors sm:border-b-0 sm:px-5 sm:first:pl-0 sm:[&:not(:first-child)]:border-l sm:[&:not(:first-child)]:border-ink/15"
+                >
+                  <div className="font-display text-[30px] font-extrabold leading-none text-ink/15 transition-colors group-hover:text-signal">
+                    {s.n}
+                  </div>
+                  <h3 className="mt-3 font-display text-[20px] font-bold tracking-[-0.3px] text-ink">
+                    {s.title}
+                  </h3>
+                  <p className="mt-2 text-[14.5px] leading-[1.6] text-ink-3">{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <a
+            href={METHODOLOGY_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="group mt-14 flex flex-col justify-between gap-4 border-2 border-ink bg-surface p-6 transition-shadow hover:shadow-[6px_6px_0_0_#0f2430] sm:flex-row sm:items-center sm:p-8"
           >
-            U.S. STREET ADDRESS
-          </label>
-          <form
-            onSubmit={onSubmit}
-            className="flex border border-ink bg-surface"
-          >
-            <input
-              id="addr"
-              name="address"
-              type="text"
-              value={addr}
-              onChange={(e) => setAddr(e.target.value)}
-              placeholder="123 Main St, Charleston, SC"
-              maxLength={200}
-              aria-label="U.S. street address"
-              className="min-w-0 flex-1 border-none bg-transparent px-3.5 py-3.5 font-sans text-[15px] font-medium tracking-[-0.2px] text-ink outline-none placeholder:text-ink-3 lg:px-4 lg:py-4 lg:text-[16px]"
-            />
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className={`flex items-center gap-1.5 border-l border-ink px-4 font-mono text-[11px] font-semibold tracking-[1.2px] lg:px-5 lg:text-[12px] ${
-                canSubmit
-                  ? "cursor-pointer bg-ink text-surface"
-                  : "cursor-not-allowed bg-surface-alt text-ink-3"
-              }`}
-            >
-              SCORE <ArrowIcon size={13} />
-            </button>
-          </form>
-          <p className="mt-2 font-mono text-[10px] leading-[1.4] tracking-[0.4px] text-ink-3 lg:mt-3 lg:text-[11px]">
-            Residential addresses only. First lookup in a new county takes ~30 s.
-          </p>
-
-          <div className="pt-7 lg:pt-10">
-            <div className="mb-2.5 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink-3 lg:text-[11px] lg:tracking-[1.6px]">
-              WHAT YOU&apos;LL GET
+            <div>
+              <div className="font-display text-[20px] font-bold tracking-[-0.3px] text-ink">
+                Read the full methodology
+              </div>
+              <p className="mt-1 text-[14.5px] text-ink-3">
+                Weights, edge cases and known limitations, all documented in the open.
+              </p>
             </div>
-            <div className="flex gap-2">
-              <HorizonChip label="+10y" sub="BY 2036" />
-              <HorizonChip label="+30y" sub="BY 2056" />
-              <HorizonChip label="+100y" sub="BY 2125" />
-            </div>
-            <p className="mt-3 font-sans text-[13px] leading-[1.5] text-ink-2 lg:mt-4 lg:text-[14px]">
-              A county percentile, a national percentile, and a confidence
-              label — for each horizon. Plus a 3-page PDF report.
-            </p>
-          </div>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-ink transition-colors group-hover:bg-signal">
+              <ArrowIcon size={16} />
+            </span>
+          </a>
         </section>
-      </div>
+      </main>
 
-      {/* Supporting zone — single column on mobile, 2-col on desktop */}
-      <div className="lg:grid lg:grid-cols-2 lg:gap-6 lg:px-12 lg:pt-16">
-        <section className="mx-5 mt-6 border border-ink bg-surface px-3.5 py-3.5 lg:mx-0 lg:mt-0 lg:px-5 lg:py-5">
-          <div className="mb-2 font-mono text-[10px] font-semibold tracking-[1.4px] text-ink lg:mb-3 lg:text-[11px] lg:tracking-[1.6px]">
-            EDUCATIONAL TOOL — NOT INSURANCE
-          </div>
-          <ul className="flex flex-col gap-1 font-sans text-[12px] leading-[1.55] text-ink-2 lg:gap-2 lg:text-[14px]">
-            {[
-              "Not flood-insurance underwriting",
-              "Not an official FEMA flood-map reading",
-              "Not a substitute for professional flood assessment",
-            ].map((line) => (
-              <li key={line} className="grid grid-cols-[14px_1fr] gap-1.5">
-                <span className="font-mono text-ink-3">·</span>
-                <span>{line}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <a
-          href="#methodology"
-          className="mx-5 mt-3 flex items-center justify-between border border-dashed border-line px-3.5 py-3 lg:mx-0 lg:mt-0 lg:px-5 lg:py-5"
-        >
-          <div>
-            <div className="font-sans text-[13px] font-medium text-ink lg:text-[15px]">
-              Read the methodology
-            </div>
-            <div className="mt-0.5 font-mono text-[10px] tracking-[0.3px] text-ink-3 lg:mt-1 lg:text-[11px]">
-              V1.1 · HOW THE SCORE IS BUILT
-            </div>
-          </div>
-          <ArrowIcon size={14} />
-        </a>
-      </div>
-
-      <footer className="px-5 pt-5 font-mono text-[10px] leading-[1.6] tracking-[0.4px] text-ink-3 lg:px-12 lg:pt-16 lg:text-[11px]">
-        <div className="mb-1 font-semibold tracking-[1.2px] text-ink lg:mb-2 lg:tracking-[1.6px]">
-          SOURCES
-        </div>
-        FEMA National Flood Hazard Layer · NOAA Sea Level Rise V2022
-      </footer>
-    </main>
+      <SiteFooter />
+    </div>
   );
 }
