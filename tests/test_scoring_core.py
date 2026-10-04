@@ -82,12 +82,23 @@ class TestHorizonWeights:
         assert s.composite == 75
 
     def test_composite_30_year_weighted(self):
-        s = composite_for_horizon(30, fema_normalized=75, noaa_normalized=50)
-        assert s.composite == pytest.approx(0.7 * 75 + 0.3 * 50)
+        s = composite_for_horizon(30, fema_normalized=30, noaa_normalized=80)
+        assert s.composite == pytest.approx(0.7 * 30 + 0.3 * 80)
 
     def test_composite_100_year_weighted(self):
+        s = composite_for_horizon(100, fema_normalized=30, noaa_normalized=80)
+        assert s.composite == pytest.approx(0.3 * 30 + 0.7 * 80)
+
+    def test_fema_floor_when_noaa_is_lower(self):
+        # Weighted would be 0.3*75 + 0.7*50 = 57.5; today's FEMA hazard wins.
         s = composite_for_horizon(100, fema_normalized=75, noaa_normalized=50)
-        assert s.composite == pytest.approx(0.3 * 75 + 0.7 * 50)
+        assert s.composite == 75
+
+    @pytest.mark.parametrize("h", [10, 30, 100])
+    def test_inland_high_risk_home_keeps_its_fema_hazard(self, h):
+        # Inland: NOAA has no signal (0). Zone AE must not decay to "Low".
+        s = composite_for_horizon(h, fema_normalized=75, noaa_normalized=0)
+        assert s.composite == 75
 
     def test_unknown_horizon_rejected(self):
         with pytest.raises(ValueError):

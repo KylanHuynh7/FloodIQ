@@ -14,7 +14,7 @@ browser ──► flood-iq.vercel.app        Next.js frontend   (frontend/)
    └──────► flood-iq-api.vercel.app    FastAPI backend    (floodiq/, Vercel Python Functions)
                      │
                      ├──► Turso (libSQL)   score history, county baselines
-                     └──► FEMA NFHL · NOAA SLR · U.S. Census geocoder · OpenStreetMap
+                     └──► FEMA NFHL · NOAA SLR · OpenFEMA NFIP claims · U.S. Census geocoder · OpenStreetMap
 ```
 
 Both apps deploy from this repository as two Vercel projects. Pushing to `main` deploys both to production. Other branches get preview deployments.
@@ -64,6 +64,7 @@ Tests run fully offline against local SQLite and mocked upstream services.
 
 - **FEMA NFHL** — continental U.S. (queried live). Addresses outside the continental U.S. are declined (METHODOLOGY.md Section 9.4).
 - **NOAA SLR depth rasters** — continental coastal states: FL, SC, GA, NC, VA, MD, DE, NJ, NY, CT, RI, MA, NH, ME, LA, TX, MS, AL, CA, OR, WA. Properties outside these regions get FEMA-only scoring with a documented confidence penalty at the 100-year horizon (Section 9.3).
+- **Flood insurance claims** — OpenFEMA NFIP claims per Census tract, shown as context and not part of the score (METHODOLOGY.md Section 3.4).
 - **Geocoding** — primary: U.S. Census Geocoder. Fallback: OpenStreetMap (Nominatim), only for input with a house number and a state or ZIP that matches the result. OSM matches are flagged as approximate and lower confidence (Section 7).
 
 ## Repo layout
@@ -90,7 +91,7 @@ METHODOLOGY.md    # source of truth — read this before touching scoring logic
 These are documented in METHODOLOGY.md Sections 9 and 12 — read those for the full version:
 
 - **NOAA point-precision tradeoff.** NOAA's raster is sampled in a 21-cell (~63m) neighborhood around the geocoded address. A genuinely-waterfront property whose geocode lands on an elevated building footprint may read as "above SLR threshold" — the report acknowledges this case explicitly.
-- **Inland flooding is not projected forward.** FEMA's flood zones include today's river floodplains, but v1.1 has no inland equivalent of NOAA's sea-level projections. Inland properties are scored on FEMA alone, with a confidence penalty at the 100-year horizon.
+- **Inland flooding is not projected forward.** FEMA's flood zones include today's river floodplains, but FloodIQ has no inland equivalent of NOAA's sea-level projections yet. Inland properties keep their FEMA hazard at every horizon (the Section 5 floor), with a confidence penalty at the 100-year horizon.
 - **Tie-dominated counties.** Where most of a county shares one score, the result reads "typical for this county" with a hazard level instead of a percentile (Section 6).
 - **FEMA map age** is reflected in confidence, not the score itself. Old maps lose tiers.
 - **Rate limits are best-effort** on serverless (per warm instance).

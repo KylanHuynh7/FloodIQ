@@ -7,6 +7,7 @@ import { DownloadIcon } from "@/components/icons";
 import { AddressForm, Kicker, SiteFooter, SiteHeader } from "@/components/chrome";
 import { ConfirmationMap } from "@/components/ConfirmationMap";
 import { HorizonExplorer } from "@/components/HorizonExplorer";
+import { ClaimsHistoryCard } from "@/components/ClaimsHistoryCard";
 import { apiUrl } from "@/lib/api";
 
 export default function ResultPage() {
@@ -135,6 +136,8 @@ export default function ResultPage() {
               femaZone={data.fema_zone_raw}
             />
           </section>
+
+          {data.claims_history && <ClaimsHistoryCard history={data.claims_history} />}
 
           {/* Sources + how to read */}
           <section className="mt-14 grid gap-6 lg:grid-cols-12">

@@ -3,13 +3,15 @@
 import tempfile
 from pathlib import Path
 
+from floodiq import METHODOLOGY_VERSION
 from floodiq.cache.store import composite_scores_in_county, open_store, record_score
 
 COUNTY = "11001"
 
 
-def _payload(score: float, *, approximate: bool = False, error: str | None = None):
+def _payload(score: float, *, approximate: bool = False, error: str | None = None, version: str = METHODOLOGY_VERSION):
     return {
+        "methodology_version": version,
         "geocoder_match_is_approximate": approximate,
         "error": error,
         "horizons": {"10": {"composite_absolute": score}},
@@ -49,3 +51,10 @@ def test_junk_fallback_matches_are_excluded():
         _record(conn, "100 East Bay St, Charleston, SC 29401", "100, East Bay Street", _payload(32, approximate=True))
         _record(conn, "bad", "", _payload(0, error="not found"))
         assert composite_scores_in_county(conn, COUNTY, 10) == [32.0]
+
+
+def test_scores_from_older_methodology_versions_are_excluded():
+    for conn in _scores():
+        _record(conn, "1 Old St, Washington, DC", "1 OLD ST", _payload(22.5, version="1.1"))
+        _record(conn, "2 New St, Washington, DC", "2 NEW ST", _payload(75))
+        assert composite_scores_in_county(conn, COUNTY, 10) == [75.0]

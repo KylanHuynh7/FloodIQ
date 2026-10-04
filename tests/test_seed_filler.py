@@ -125,3 +125,32 @@ def test_seeds_flow_into_county_percentile_query(tmp_db, fake_tracts, fake_fema)
     assert len(scores) == 15
     # All seeded scores should fall in 0..100 (sanity).
     assert all(0 <= s <= 100 for s in scores)
+
+
+def test_sample_order_is_deterministic_and_spread_out():
+    tracts = _synthetic_tracts(200)
+    a = seed_filler.sample_order(COUNTY, tracts)
+    b = seed_filler.sample_order(COUNTY, list(reversed(tracts)))
+    assert [t.geoid for t in a] == [t.geoid for t in b]  # input order irrelevant
+    # Not the v1.1 "first N by GEOID" cluster.
+    assert [t.geoid for t in a[:25]] != sorted(t.geoid for t in tracts)[:25]
+    # A new methodology version draws a different sample.
+    c = seed_filler.sample_order(COUNTY, tracts, version="9.9")
+    assert [t.geoid for t in a[:25]] != [t.geoid for t in c[:25]]
+
+
+def test_unmapped_tracts_are_attempted_once(tmp_db, fake_tracts, monkeypatch):
+    calls = {"n": 0}
+
+    def unmapped(lat, lon, *, client=None):
+        calls["n"] += 1
+        return FemaLookup(None, None, None, None, True, None)
+
+    monkeypatch.setattr(seed_filler, "lookup_fema", unmapped)
+    with open_store(tmp_db) as conn:
+        seed_filler.ensure_county_seeded(conn, COUNTY, target=10, now_year=2026)
+    first = calls["n"]
+    with open_store(tmp_db) as conn:
+        seed_filler.ensure_county_seeded(conn, COUNTY, target=10, now_year=2026)
+        assert composite_scores_in_county(conn, COUNTY, horizon_years=10) == []
+    assert first == 10 and calls["n"] == first  # no re-fetch on the next lookup

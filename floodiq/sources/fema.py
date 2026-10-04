@@ -67,7 +67,7 @@ def lookup_fema(
             # but usually fine on a second attempt within a few seconds.
             data = _query_layer(client, params)
         features = data["features"]
-        effective_date = _fetch_effective_date(features, client)
+        effective_date = _fetch_effective_date(features, client, latitude, longitude)
     finally:
         if own_client:
             client.close()
@@ -150,43 +150,61 @@ def _normalize_zone_label(zone_raw: str | None, subtype: str | None) -> str | No
     return None
 
 
-def _fetch_effective_date(
-    features: list[dict], client: httpx.Client
-) -> datetime | None:
-    """Look up the effective date of the FIRM panel via the DFIRM_ID.
+NFHL_FIRM_PANEL_LAYER_URL = (
+    "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/3/query"
+)
 
-    NFHL's S_FIRM_Pan layer (layer id 3 on the public service) carries
-    EFF_DATE per DFIRM panel. We query it cheaply by DFIRM_ID. If anything
-    fails we return None — map age is a confidence input, not a blocker.
+
+def _fetch_effective_date(
+    features: list[dict],
+    client: httpx.Client,
+    latitude: float,
+    longitude: float,
+) -> datetime | None:
+    """Effective date of the FIRM panel that covers the property.
+
+    Queries NFHL's S_FIRM_Pan layer (id 3) at the property's point. Panels
+    from neighboring map sets overlap at county edges, so we pick the panel
+    whose DFIRM_ID matches the flood-zone polygon's. (v1.1 asked for any one
+    panel in the DFIRM set, which in large counties could be a panel miles
+    away with a different date, and whose `resultRecordCount` sometimes
+    fails with "Pagination is not supported".) One retry on transient
+    errors, which NFHL reports as HTTP 200 with an `error` body. Returns
+    None on failure — map age is a confidence input, not a blocker.
     """
     if not features:
         return None
     dfirm_id = features[0].get("attributes", {}).get("DFIRM_ID")
-    if not dfirm_id:
+    params = {
+        "geometry": f"{longitude},{latitude}",
+        "geometryType": "esriGeometryPoint",
+        "inSR": "4326",
+        "spatialRel": "esriSpatialRelIntersects",
+        "outFields": "EFF_DATE,DFIRM_ID",
+        "returnGeometry": "false",
+        "f": "json",
+    }
+    panels = None
+    for _ in range(2):
+        try:
+            resp = client.get(NFHL_FIRM_PANEL_LAYER_URL, params=params)
+            resp.raise_for_status()
+            data = resp.json()
+            if isinstance(data, dict) and "features" in data and "error" not in data:
+                panels = data["features"]
+                break
+        except Exception:
+            continue
+    if not panels:
         return None
-    try:
-        params = {
-            "where": f"DFIRM_ID='{dfirm_id}'",
-            "outFields": "EFF_DATE",
-            "returnGeometry": "false",
-            "f": "json",
-            "resultRecordCount": "1",
-        }
-        resp = client.get(
-            "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/3/query",
-            params=params,
-        )
-        resp.raise_for_status()
-        feats = resp.json().get("features", [])
-        if not feats:
-            return None
-        eff_ms = feats[0].get("attributes", {}).get("EFF_DATE")
-        if eff_ms is None:
-            return None
-        # ArcGIS dates are Unix epoch milliseconds.
-        return datetime.fromtimestamp(eff_ms / 1000, tz=timezone.utc)
-    except Exception:
+    matching = [
+        f for f in panels if (f.get("attributes") or {}).get("DFIRM_ID") == dfirm_id
+    ] or panels
+    eff_ms = (matching[0].get("attributes") or {}).get("EFF_DATE")
+    if eff_ms is None:
         return None
+    # ArcGIS dates are Unix epoch milliseconds.
+    return datetime.fromtimestamp(eff_ms / 1000, tz=timezone.utc)
 
 
 def map_age_years(effective_date: datetime | None, *, now: datetime | None = None) -> float | None:

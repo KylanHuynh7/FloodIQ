@@ -1,19 +1,18 @@
 """Lazy county seed filler (Section 6).
 
-When a user requests a score for an address in a county that has fewer
-than ``SEED_TARGET`` tract-centroid scores in the local store, this
-module scores the next batch of centroids via the FEMA NFHL API before
-the user's percentile is computed. Cost: one-time per county, ~15-30s.
+When a user requests a score for an address in a county whose seed sample
+(``SEED_TARGET`` tracts in ``sample_order``) isn't fully scored under the
+current methodology version, this module scores the missing tracts' internal
+points via FEMA NFHL and NOAA SLR before the user's percentile is computed.
+Cost: one-time per county per methodology version, roughly 15-60 s.
 
-NOAA contribution to seed scores is 0 across all horizons until the
-NOAA dataset is populated (Section 9.3 inland behavior), so seeds are
-currently FEMA-driven. When NOAA data later lands, seeds should be
-re-scored — the methodology_version key in the table lets us purge and
-refill cleanly.
+Seeds are keyed by methodology_version, so a version bump re-seeds every
+county on its next lookup.
 """
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 
@@ -35,10 +34,34 @@ from floodiq.sources.fema import lookup_fema
 from floodiq.sources.noaa import lookup_noaa
 
 
-SEED_TARGET = 25
-# 5 concurrent FEMA requests stays well within polite usage of the public
-# NFHL endpoint while cutting wall time from ~25*latency to ~5*latency.
-SEED_CONCURRENCY = 5
+# Section 6 (v1.2): 100 tracts per county, chosen by a seeded hash order
+# (see sample_order). Tracts hold roughly equal populations, so a uniform
+# sample of tracts approximates a population-weighted sample of homes.
+SEED_TARGET = 100
+# 8 concurrent FEMA requests keeps a 100-tract fill well inside the
+# serverless time limit while staying polite to the public NFHL endpoint.
+SEED_CONCURRENCY = 8
+
+# Marker row for a sampled tract FEMA has no map for (e.g. open water), so
+# it counts as attempted and isn't re-fetched on every later lookup. It
+# never enters a baseline: queries only read horizons 10/30/100.
+UNMAPPED_MARKER_HORIZON = 0
+
+
+def sample_order(county_fips: str, tracts: list, version: str = METHODOLOGY_VERSION) -> list:
+    """Deterministic pseudo-random order of a county's tracts.
+
+    v1.1 took the first N tracts by GEOID, and GEOIDs are assigned
+    geographically, so the sample was one cluster of neighbors (Miami-Dade:
+    92% Zone AE vs ~30% in a fair sample). Ranking by a hash of
+    (county, tract, methodology version) spreads the sample across the
+    county while staying reproducible on any machine (Section 11), unlike
+    random.shuffle, whose output may change between Python versions.
+    """
+    def rank(t) -> str:
+        return hashlib.sha256(f"{county_fips}:{t.geoid}:{version}".encode()).hexdigest()
+
+    return sorted(tracts, key=rank)
 
 
 def ensure_county_seeded(
@@ -57,17 +80,18 @@ def ensure_county_seeded(
     so SQLite's single-writer model is respected.
     """
 
-    have = count_seeds_in_county(conn, county_fips, METHODOLOGY_VERSION)
-    if have >= target:
-        return 0
-
-    need = target - have
     all_tracts = tracts_for_county(county_fips)
     if not all_tracts:
         return 0
+    # The sample is the first `target` tracts in hash order (all of them in
+    # small counties). Attempted-but-unmapped tracts count via marker rows.
+    sample = sample_order(county_fips, all_tracts)[:target]
+    have = count_seeds_in_county(conn, county_fips, METHODOLOGY_VERSION)
+    if have >= len(sample):
+        return 0
 
     already = seeded_tract_geoids(conn, county_fips, METHODOLOGY_VERSION)
-    candidates = [t for t in all_tracts if t.geoid not in already][:need]
+    candidates = [t for t in sample if t.geoid not in already]
     if not candidates:
         return 0
 
@@ -78,9 +102,9 @@ def ensure_county_seeded(
             try:
                 fema = lookup_fema(tract.latitude, tract.longitude, client=c)
             except Exception:
-                return None
+                return None  # transient: retried on a later lookup
         if fema.unmapped or fema.zone_normalized is None:
-            return None
+            return (tract, None, None)  # permanent: record as attempted
         fema_normalized = normalize_fema_zone(fema.zone_normalized)
         if fema_normalized is None:
             return None
@@ -97,6 +121,17 @@ def ensure_county_seeded(
             if result is None:
                 continue
             tract, zone, composites = result
+            if composites is None:
+                insert_seed_score(
+                    conn,
+                    county_fips=county_fips,
+                    tract_geoid=tract.geoid,
+                    horizon_years=UNMAPPED_MARKER_HORIZON,
+                    composite_absolute=-1.0,
+                    fema_zone="UNMAPPED",
+                    methodology_version=METHODOLOGY_VERSION,
+                )
+                continue
             for h, c in composites.items():
                 insert_seed_score(
                     conn,

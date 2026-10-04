@@ -10,7 +10,8 @@ FEMA zone, imprecise geocode, inland properties, addresses outside CONUS.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -19,6 +20,8 @@ from floodiq.baseline.county import percentile_in_county
 from floodiq.baseline.national import percentile_national
 from floodiq.baseline.seed_filler import ensure_county_seeded
 from floodiq.cache.store import (
+    cache_get,
+    cache_put,
     composite_scores_in_county,
     composite_scores_national,
     open_store,
@@ -36,7 +39,9 @@ from floodiq.scoring.normalize import (
 )
 from floodiq.sources.fema import lookup_fema, map_age_years
 from floodiq.sources.geocoder import geocode_with_fallback
+from floodiq.sources.nfip import lookup_claims
 from floodiq.sources.noaa import lookup_noaa
+from floodiq.baseline.tract_centroids import tracts_for_county
 
 
 UNMAPPED_MESSAGE = (
@@ -62,11 +67,11 @@ ADDRESS_NOT_FOUND_MESSAGE = (
 # the score. Wording differs based on *why*: outside NOAA coverage entirely
 # vs covered but the modeled SLR doesn't reach this point.
 INLAND_NOTE_OUTSIDE_COVERAGE = (
-    "This property is outside NOAA's v1.1 coastal SLR coverage (currently "
-    "CONUS coastal states only). The 30- and 100-year scores are based on "
-    "FEMA flood zone data alone, which reflects historical patterns and may "
-    "not capture changing flood risks from increased precipitation or "
-    "inland flooding. This is a documented limitation of FloodIQ v1.1."
+    "This property is outside the NOAA sea-level-rise coverage FloodIQ uses "
+    "(continental U.S. coastal states). The 30- and 100-year scores are based "
+    "on FEMA flood zone data alone, which reflects historical patterns and "
+    "may not capture changing flood risks from increased precipitation or "
+    "inland flooding. This is a documented limitation of FloodIQ."
 )
 INLAND_NOTE_COVERED_BUT_DRY = (
     "NOAA's coastal SLR raster covers this address, but its modeled "
@@ -137,6 +142,8 @@ class ScoreReport:
     horizons: dict[int, HorizonReport] = field(default_factory=dict)
     summary_headline: str = ""
     inland_note: str | None = None
+    # Section 3.4 display-only flood history (NFIP claims in the tract).
+    claims_history: dict | None = None
     # Set when no score is returned (unmapped, outside CONUS, etc.).
     error: str | None = None
 
@@ -165,6 +172,12 @@ def score_address(
                 return _error_report(
                     address, OUTSIDE_CONUS_MESSAGE, now, geo=geo
                 )
+            # Flood history is independent of scoring; fetch it alongside.
+            claims_future = (
+                _CLAIMS_POOL.submit(_claims_history, geo.tract_geoid, geo.county_fips)
+                if persist and geo.tract_geoid
+                else None
+            )
 
             fema = lookup_fema(geo.latitude, geo.longitude, client=http)
     except (httpx.TimeoutException, httpx.HTTPError):
@@ -285,6 +298,7 @@ def score_address(
             if is_inland and noaa_region_covered
             else None
         ),
+        claims_history=_await_claims(claims_future),
     )
 
     # Callers that persist the report themselves (the web API, which needs
@@ -305,6 +319,41 @@ def score_address(
             pass
 
     return report
+
+
+_CLAIMS_POOL = ThreadPoolExecutor(max_workers=4)
+CLAIMS_CACHE_DAYS = 30  # OpenFEMA refreshes NFIP claims monthly
+CLAIMS_WAIT_SECONDS = 25
+
+
+def _claims_history(tract_geoid: str, county_fips: str) -> dict | None:
+    """NFIP claims for the tract, from cache when fresh. Never raises."""
+    try:
+        with open_store() as conn:
+            hit = cache_get(conn, "nfip_claims", tract_geoid)
+        if hit:
+            age = datetime.now(tz=timezone.utc) - datetime.fromisoformat(hit["retrieved_at"])
+            if age < timedelta(days=CLAIMS_CACHE_DAYS):
+                return hit["payload"]
+        history = lookup_claims(
+            tract_geoid, county_tract_count=len(tracts_for_county(county_fips))
+        )
+        if history is None:
+            return None
+        with open_store() as conn:
+            cache_put(conn, "nfip_claims", tract_geoid, history.to_dict())
+        return history.to_dict()
+    except Exception:
+        return None
+
+
+def _await_claims(future) -> dict | None:
+    if future is None:
+        return None
+    try:
+        return future.result(timeout=CLAIMS_WAIT_SECONDS)
+    except Exception:
+        return None
 
 
 def hazard_level(composite_absolute: float) -> str:

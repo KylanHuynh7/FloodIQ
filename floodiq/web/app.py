@@ -544,6 +544,7 @@ def _report_to_jsonable(report: ScoreReport) -> dict:
         "horizons": horizons,
         "summary_headline": report.summary_headline,
         "inland_note": report.inland_note,
+        "claims_history": report.claims_history,
         "error": report.error,
     }
 
@@ -587,5 +588,6 @@ def _report_from_stored_payload(payload: dict) -> ScoreReport:
         horizons=horizons,
         summary_headline=payload.get("summary_headline", ""),
         inland_note=payload.get("inland_note"),
+        claims_history=payload.get("claims_history"),
         error=payload.get("error"),
     )

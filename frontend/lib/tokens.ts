@@ -71,6 +71,13 @@ export function isTypicalForCounty(h: HorizonScore): boolean {
   return h.county_tie_share != null && h.county_tie_share >= TYPICAL_TIE_SHARE;
 }
 
+export type ClaimsHistory = {
+  tract_geoid: string;
+  claims_in_tract: number;
+  claims_outside_high_risk: number;
+  county_avg_per_tract: number | null;
+};
+
 export type FloodScoreResponse = {
   methodology_version: string;
   scored_at: string;
@@ -91,6 +98,9 @@ export type FloodScoreResponse = {
   horizons: { "10": HorizonScore; "30": HorizonScore; "100": HorizonScore };
   summary_headline: string;
   inland_note: string | null;
+  // Section 3.4: NFIP claims in the Census tract. Display-only; absent on
+  // older results or when OpenFEMA was unavailable.
+  claims_history?: ClaimsHistory | null;
   error: string | null;
   score_id: string;
 };
