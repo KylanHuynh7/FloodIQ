@@ -14,6 +14,7 @@ Two responsibilities:
 from __future__ import annotations
 
 import json
+import os
 import secrets
 import sqlite3
 from contextlib import contextmanager
@@ -75,13 +76,42 @@ def _now_utc() -> str:
     return datetime.now(tz=timezone.utc).isoformat()
 
 
+# Hosted deployments (e.g. Vercel Functions) have no persistent disk, so
+# when TURSO_DATABASE_URL is set the store lives in a Turso database
+# instead of data/cache.db. An explicit db_path always means local SQLite,
+# which keeps tests and local development on plain files.
+_turso_schema_applied = False
+
+
 @contextmanager
 def open_store(db_path: Path | None = None) -> Iterator[sqlite3.Connection]:
+    turso_url = os.environ.get("TURSO_DATABASE_URL")
+    if db_path is None and turso_url:
+        yield from _open_turso(turso_url)
+        return
     path = db_path or DEFAULT_DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     try:
         conn.executescript(SCHEMA)
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _open_turso(url: str):
+    from floodiq.cache.turso import TursoConnection
+
+    global _turso_schema_applied
+    conn = TursoConnection(url, os.environ.get("TURSO_AUTH_TOKEN", ""))
+    try:
+        if not _turso_schema_applied:
+            # CREATE ... IF NOT EXISTS is idempotent; once per process is
+            # enough and saves a round trip on every request.
+            conn.executescript(SCHEMA)
+            conn.commit()
+            _turso_schema_applied = True
         yield conn
         conn.commit()
     finally:

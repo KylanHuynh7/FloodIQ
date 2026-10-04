@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "functions": {
+    "floodiq/web/app.py": {
+      "maxDuration": 300,
+      "excludeFiles": "{frontend/**,tests/**,scripts/**,_design_handoff/**,.playwright-mcp/**,.venv/**,.pytest_cache/**,data/cache.db,data/noaa_slr/**,demo.sh,*.png,.env*,.vercel/**}"
+    }
+  }
+}

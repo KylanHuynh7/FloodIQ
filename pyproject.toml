@@ -1,0 +1,18 @@
+# Runtime dependencies for the hosted backend (Vercel Python runtime).
+# Local development still uses requirements.txt; keep the two in sync.
+[project]
+name = "floodiq"
+version = "1.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "reportlab>=4.0",
+    "rasterio>=1.4",
+    "jinja2>=3.1",
+    "slowapi>=0.1.9",
+]
+
+[tool.vercel]
+entrypoint = "floodiq.web.app:app"
