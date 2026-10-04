@@ -26,6 +26,19 @@ class CountyPercentile:
     score_absolute: float  # the 0-100 composite before baselining
     percentile: float | None  # 0-100, county-relative; None if no baseline
     sample_size: int  # number of reference scores used
+    # Share of the reference set with exactly this score (0-1). When most
+    # of the county ties, mid-rank pins the percentile at ~50 regardless
+    # of the actual hazard, so callers display "typical for county".
+    tie_share: float | None = None
+
+
+# Section 6: at or above this tie share, the percentile is not
+# informative and the address is reported as typical for its county.
+TYPICAL_TIE_SHARE = 0.5
+
+
+def is_typical_for_county(tie_share: float | None) -> bool:
+    return tie_share is not None and tie_share >= TYPICAL_TIE_SHARE
 
 
 def seed_distribution_for_county(county_fips: str) -> list[float]:
@@ -77,4 +90,5 @@ def percentile_in_county(
         score_absolute=score_absolute,
         percentile=pct,
         sample_size=n,
+        tie_share=(hi - lo) / n,
     )

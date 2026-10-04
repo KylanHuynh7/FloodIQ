@@ -165,10 +165,11 @@ def composite_scores_in_county(
     county. Combines user score history with the tract-centroid seed set
     (Section 6)."""
     rows = conn.execute(
-        "SELECT payload FROM score_history WHERE county_fips=?",
+        "SELECT address_input, matched_address, payload FROM score_history "
+        "WHERE county_fips=? ORDER BY id",
         (county_fips,),
     ).fetchall()
-    out = _composites_from_rows(rows, horizon_years)
+    out = _composites_from_rows(_reference_rows(rows), horizon_years)
     seed_rows = conn.execute(
         "SELECT composite_absolute FROM county_seed_scores "
         "WHERE county_fips=? AND horizon_years=?",
@@ -183,8 +184,11 @@ def composite_scores_national(
 ) -> list[float]:
     """National reference distribution: union of all user history + all
     county seeds at this horizon."""
-    rows = conn.execute("SELECT payload FROM score_history").fetchall()
-    out = _composites_from_rows(rows, horizon_years)
+    rows = conn.execute(
+        "SELECT address_input, matched_address, payload FROM score_history "
+        "ORDER BY id"
+    ).fetchall()
+    out = _composites_from_rows(_reference_rows(rows), horizon_years)
     seed_rows = conn.execute(
         "SELECT composite_absolute FROM county_seed_scores WHERE horizon_years=?",
         (horizon_years,),
@@ -242,6 +246,38 @@ def insert_seed_score(
             _now_utc(),
         ),
     )
+
+
+def _reference_rows(rows: list) -> list[tuple[str]]:
+    """Filter user score history down to what may enter a baseline
+    (Section 6 reference set):
+
+    - each address counts once, at its most recent score, so repeat
+      lookups of one property can't skew its county's distribution;
+    - approximate (OSM fallback) matches only count when the input would
+      pass today's street-address check, which drops junk lookups that
+      older versions resolved to arbitrary places.
+
+    `rows` are (address_input, matched_address, payload) ordered oldest
+    first; returns [(payload,), ...] for `_composites_from_rows`.
+    """
+    from floodiq.sources.geocoder import looks_like_street_address
+
+    latest: dict[str, str] = {}
+    for address_input, matched_address, payload in rows:
+        try:
+            data = json.loads(payload)
+        except (TypeError, ValueError):
+            continue
+        if data.get("error"):
+            continue
+        if data.get("geocoder_match_is_approximate") and not looks_like_street_address(
+            address_input or ""
+        ):
+            continue
+        key = " ".join((matched_address or address_input or "").upper().split())
+        latest[key] = payload
+    return [(p,) for p in latest.values()]
 
 
 def _composites_from_rows(rows: list, horizon_years: int) -> list[float]:

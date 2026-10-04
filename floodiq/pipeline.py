@@ -102,6 +102,9 @@ class HorizonReport:
     confidence_label: str
     confidence_drivers: list[str]
     disagreement: bool
+    # Share of the county reference set tied with this score; see
+    # baseline.county.is_typical_for_county. None for pre-v1.1 records.
+    county_tie_share: float | None = None
 
 
 @dataclass
@@ -249,6 +252,7 @@ def score_address(
             confidence_label=conf.label,
             confidence_drivers=conf.drivers,
             disagreement=conf.disagreement,
+            county_tie_share=pct_county.tie_share,
         )
 
     report = ScoreReport(

@@ -171,12 +171,10 @@ def geocode_with_fallback(
     # Downing Street in New Jersey. Only consult it for input that looks
     # like a street address and names a state (or ZIP) we can check the
     # match against.
-    if not _HOUSE_NUMBER_RE.search(address):
+    if not looks_like_street_address(address):
         return primary
     named_states = _states_named_in(address)
     zips = _ZIP_RE.findall(address)
-    if not named_states and not zips:
-        return primary
 
     # Census missed — try Nominatim. Local import keeps the dependency
     # graph tight (callers that don't want OSM never hit this path).
@@ -253,6 +251,14 @@ _STATE_RE = re.compile(
     + r")\b",
     re.IGNORECASE,
 )
+
+
+def looks_like_street_address(address: str) -> bool:
+    """True when `address` has a house number plus a state or ZIP: the
+    minimum we need to sanity-check a forgiving (OSM) geocoder match."""
+    return bool(_HOUSE_NUMBER_RE.search(address)) and bool(
+        _states_named_in(address) or _ZIP_RE.search(address)
+    )
 
 
 def _states_named_in(address: str) -> set[str]:
