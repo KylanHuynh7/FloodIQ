@@ -20,6 +20,7 @@ from floodiq.cache.store import (
     open_store,
 )
 from floodiq.sources.fema import FemaLookup
+from floodiq.sources.noaa import NoaaLookup
 
 
 COUNTY = "06075"  # San Francisco
@@ -70,6 +71,18 @@ def fake_fema(monkeypatch):
         )
 
     monkeypatch.setattr(seed_filler, "lookup_fema", fake_lookup)
+    # Keep the test offline: without this, every synthetic tract would
+    # fetch real NOAA rasters from noaa.gov.
+    monkeypatch.setattr(
+        seed_filler,
+        "lookup_noaa",
+        lambda lat, lon, h, *, now_year: NoaaLookup(
+            inundation_feet=None,
+            projection_year=now_year + h,
+            scenario="intermediate",
+            data_available=True,
+        ),
+    )
 
 
 def test_seed_fill_reaches_target(tmp_db, fake_tracts, fake_fema):
