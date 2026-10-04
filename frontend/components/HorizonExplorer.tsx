@@ -7,6 +7,7 @@ import {
   ConfidenceLevel,
   HorizonScore,
   RISK_BANDS,
+  hazardLevel,
   horizonYear,
   isTypicalForCounty,
   ordinalSuffix,
@@ -61,6 +62,7 @@ export function HorizonExplorer({
   const shown = Math.round(useCountUp(pct));
   const nat = h.composite_national_percentile != null ? Math.round(h.composite_national_percentile) : null;
   const year = horizonYear(scoredAt, h.horizon_years);
+  const hazard = hazardLevel(h.composite_absolute);
 
   // Roving tabindex: arrow keys move both the selection and keyboard focus.
   function onKey(e: React.KeyboardEvent) {
@@ -107,7 +109,11 @@ export function HorizonExplorer({
                     active ? "text-signal" : "text-ink-3"
                   }`}
                 >
-                  {hzTypical ? "Typical" : `${p}${ordinalSuffix(p)}`}
+                  {hzTypical
+                    ? hazardLevel(hz.composite_absolute).label === "Low"
+                      ? "Typical"
+                      : `Typical · ${hazardLevel(hz.composite_absolute).label}`
+                    : `${p}${ordinalSuffix(p)}`}
                 </span>
               </div>
               <div className={`mt-1 text-[12.5px] ${active ? "text-white/65" : "text-ink-4"}`}>
@@ -115,7 +121,7 @@ export function HorizonExplorer({
               </div>
               <span
                 className="absolute inset-x-0 bottom-0 h-[3px]"
-                style={{ backgroundColor: hzTypical ? "#9caeb1" : riskColor(p).fill }}
+                style={{ backgroundColor: hzTypical ? hazardLevel(hz.composite_absolute).fill : riskColor(p).fill }}
               />
             </button>
           );
@@ -133,13 +139,29 @@ export function HorizonExplorer({
               </div>
               <div className="mt-1 font-display text-[20px] font-semibold text-ink-2">for this county</div>
               <div className="mt-4 flex flex-wrap items-center gap-3">
+                <span
+                  className="border-2 px-3 py-1 text-[13.5px] font-bold"
+                  style={{ backgroundColor: hazard.soft, color: hazard.ink, borderColor: hazard.fill }}
+                >
+                  {hazard.label} flood hazard
+                </span>
                 <ConfMeter level={h.confidence_label} />
               </div>
               <p className="mt-4 max-w-[480px] text-[15px] leading-[1.6] text-ink-2">
                 {Math.round((h.county_tie_share ?? 0) * 100)}% of the locations we sampled in{" "}
                 {countyName} score exactly the same as this one
                 {femaZone ? <> (they share FEMA Zone {femaZone})</> : null}, so ranking it against
-                them wouldn&apos;t tell you much. Use the absolute score below instead.
+                them wouldn&apos;t tell you much.{" "}
+                {hazard.label === "High" ? (
+                  <strong className="font-bold text-ink">
+                    Being normal for the area doesn&apos;t make it low risk: this is still a high
+                    flood hazard, and much of the county shares it.
+                  </strong>
+                ) : hazard.label === "Moderate" ? (
+                  <>Being normal for the area doesn&apos;t make it low risk: the hazard here is moderate.</>
+                ) : (
+                  <>The hazard here is low, as it is for most of the county.</>
+                )}
               </p>
               <div className="mt-6">
                 <AbsoluteMeter score={h.composite_absolute} />

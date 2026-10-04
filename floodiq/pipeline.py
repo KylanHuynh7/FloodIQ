@@ -307,6 +307,17 @@ def score_address(
     return report
 
 
+def hazard_level(composite_absolute: float) -> str:
+    """Plain-language hazard level for a 0-100 composite. Used by the
+    summary headline, the PDF, and (mirrored) the web UI's hazard badge,
+    so all three agree."""
+    if composite_absolute >= 70:
+        return "High"
+    if composite_absolute >= 40:
+        return "Moderate"
+    return "Low"
+
+
 def _summary_headline(
     horizons: dict[int, HorizonReport],
     is_inland: bool,
@@ -316,12 +327,7 @@ def _summary_headline(
     s100 = horizons[100].composite_absolute
     any_disagreement = any(h.disagreement for h in horizons.values())
 
-    if s10 >= 70:
-        near = "High near-term flood risk"
-    elif s10 >= 40:
-        near = "Moderate near-term flood risk"
-    else:
-        near = "Low near-term flood risk"
+    near = f"{hazard_level(s10)} near-term flood risk"
 
     if is_inland:
         # No NOAA inundation at this point, so the 10/30/100 spread is just

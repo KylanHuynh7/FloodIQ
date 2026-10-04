@@ -53,6 +53,20 @@ export type HorizonScore = {
 // METHODOLOGY.md Section 6: when most of the county shares this exact
 // score, the percentile is pinned near 50 by ties and isn't meaningful.
 export const TYPICAL_TIE_SHARE = 0.5;
+
+// Absolute hazard level from the 0-100 composite. Same cut-offs as the
+// backend (pipeline.hazard_level: >=70 High,
+// >=40 Moderate), so the badge and the summary sentence always agree.
+export type HazardLevel = { label: "Low" | "Moderate" | "High"; fill: string; ink: string; soft: string };
+export function hazardLevel(absolute: number): HazardLevel {
+  const band = (l: RiskBand["label"]) => RISK_BANDS.find((b) => b.label === l)!;
+  if (absolute >= 70) return { label: "High", ...pick(band("High")) };
+  if (absolute >= 40) return { label: "Moderate", ...pick(band("Moderate")) };
+  return { label: "Low", ...pick(band("Low")) };
+}
+function pick(b: RiskBand) {
+  return { fill: b.fill, ink: b.ink, soft: b.soft };
+}
 export function isTypicalForCounty(h: HorizonScore): boolean {
   return h.county_tie_share != null && h.county_tie_share >= TYPICAL_TIE_SHARE;
 }

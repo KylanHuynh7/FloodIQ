@@ -134,3 +134,12 @@ def test_headline_outside_coverage_names_coverage_gap():
 
     text = _summary_headline(_flat_horizons(10), True, noaa_region_covered=False)
     assert "outside NOAA's sea-level-rise coverage" in text
+
+
+def test_hazard_level_thresholds_match_headline():
+    from floodiq.pipeline import _summary_headline, hazard_level
+
+    assert hazard_level(75) == "High"  # Zone AE
+    assert hazard_level(65) == "Moderate"  # Zone A
+    assert hazard_level(10) == "Low"  # Zone X unshaded
+    assert _summary_headline(_flat_horizons(75), False).startswith("High near-term")
