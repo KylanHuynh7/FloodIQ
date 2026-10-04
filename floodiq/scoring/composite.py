@@ -31,7 +31,13 @@ def composite_for_horizon(
     if horizon_years not in HORIZON_WEIGHTS:
         raise ValueError(f"Unsupported horizon: {horizon_years}")
     fema_w, noaa_w = HORIZON_WEIGHTS[horizon_years]
-    score = fema_w * fema_normalized + noaa_w * noaa_normalized
+    weighted = fema_w * fema_normalized + noaa_w * noaa_normalized
+    # Section 5 FEMA floor (v1.2): sea-level rise can add to today's mapped
+    # hazard but never subtract from it. Without the floor, a property NOAA
+    # shows as dry (or can't see at all, inland) had its FEMA hazard diluted
+    # by the rising NOAA weight — an inland Zone AE home fell to 22.5 by the
+    # 100-year horizon, implying its flood risk drops 70% by 2126.
+    score = max(weighted, float(fema_normalized))
     return CompositeScore(
         horizon_years=horizon_years,
         fema_component=fema_normalized,

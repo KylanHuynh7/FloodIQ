@@ -162,7 +162,7 @@ def _page_2_sources(report, h1, h2, body):
     else:
         out.append(
             Paragraph(
-                "This address is outside FloodIQ v1.1's NOAA SLR coverage "
+                "This address is outside FloodIQ's NOAA SLR coverage "
                 "(CONUS coastal states only). NOAA component = 0 for all "
                 "horizons; scoring is FEMA-only.",
                 body,

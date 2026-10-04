@@ -115,8 +115,11 @@ The composite score for each horizon is a weighted average of the normalized FEM
 **Composite Score Formula:**
 
 ```
-composite_score(horizon) = (FEMA_weight × FEMA_normalized) + (NOAA_weight × NOAA_normalized)
+weighted(horizon)        = (FEMA_weight × FEMA_normalized) + (NOAA_weight × NOAA_normalized)
+composite_score(horizon) = max(weighted(horizon), FEMA_normalized)        # FEMA floor (v1.2)
 ```
+
+**FEMA floor (v1.2):** a horizon's composite can never fall below today's FEMA score. Sea level rise can add to a property's mapped hazard, but it can't make a floodplain safer. Without the floor, a property where NOAA projects no inundation (or which NOAA doesn't cover at all, inland) had its FEMA hazard diluted as the NOAA weight grew: an inland Zone AE property (FEMA 75) fell to 22.5 at the 100-year horizon, implying its flood risk drops 70% by 2126. With the floor, the weights only matter when NOAA's projection is worse than today's FEMA hazard, which is exactly the case they were designed for.
 
 **Why these weights:**
 
@@ -158,7 +161,16 @@ Scored addresses enter the reference set under two rules:
 
 Percentile rank uses the midpoint for tied scores. When most of a county's reference set shares one score (common where nearly every sampled location is in the same FEMA zone with no NOAA signal), the midpoint pins the percentile near 50 regardless of the actual hazard, which reads as "moderate" even for a minimal-hazard zone. Therefore, when **50% or more** of the county reference set has exactly the property's composite score, FloodIQ reports the property as **"typical for this county"** instead of a percentile, alongside its FEMA zone and absolute score. The percentile is still computed and stored.
 
-**Planned (not in v1.1):** the seed set samples one point per Census tract centroid, which under-represents flood zones and produces many ties. A future version will sample more points per tract and/or stratify by FEMA zone so county distributions carry real variation.
+**Seed sample (v1.2):** each county's seed set is **100 Census tracts** (every tract, in counties with fewer), scored at each tract's Census internal point.
+
+- **Selection.** Tracts are ranked by `SHA-256(county FIPS : tract GEOID : methodology version)` and the first 100 are taken. The sample is spread across the county and is reproducible on any machine (Section 11). A methodology version bump draws a fresh sample.
+- **Why tracts.** Census tracts are drawn to hold roughly equal populations (about 1,200–8,000 people), so a uniform sample of tracts approximates a population-weighted sample of homes. That matches the question the percentile answers: how this home compares with other homes in the county.
+- **Unmapped tracts.** A sampled tract FEMA has no flood map for (e.g. open water) is recorded as attempted and excluded from the baseline. It isn't re-fetched on later lookups.
+- **Version scoping.** Baselines only use seeds and user scores computed under the current methodology version, because composites from different versions aren't comparable.
+
+**Why v1.2 changed the sample:** v1.1 took the first 25 tracts by GEOID. GEOIDs are assigned geographically, so that sample was one cluster of neighbors rather than the county. In Miami-Dade it was 92% Zone AE, against roughly 30% in a fair 100-tract sample, so most Miami-Dade properties were wrongly reported as "typical for this county". Where a county genuinely is uniform (Washington, DC and Los Angeles County are each about 95% Zone X), "typical for this county" remains the honest answer.
+
+**Planned:** sampling several points within each tract, or stratifying by FEMA zone, would capture narrow flood zones that tract internal points tend to miss.
 
 ---
 
@@ -230,11 +242,11 @@ The user is not blocked from receiving a score, but is explicitly informed that 
 
 ### 9.3 Inland Properties
 
-**Behavior:** NOAA component is 0 across all horizons. Composite scores are effectively FEMA-driven (with the horizon weights still applied — the NOAA contribution is just zero). Confidence is reduced by one tier for the 100-year horizon, reflecting the missing forward-looking signal.
+**Behavior:** NOAA component is 0 across all horizons. With the FEMA floor (Section 5), the composite equals the FEMA score at every horizon: today's mapped hazard is carried forward unchanged rather than diluted. Confidence is reduced by one tier for the 100-year horizon, reflecting the missing forward-looking signal.
 
 The PDF includes the note:
 
-> "This property is inland and does not face coastal sea level rise risk. The 100-year projection is based on FEMA flood zone data only, which reflects historical patterns and may not capture changing inland flood risks from increased precipitation. This is a known limitation of FloodIQ v1."
+> "This property is inland and does not face coastal sea level rise risk. The 100-year projection is based on FEMA flood zone data only, which reflects historical patterns and may not capture changing inland flood risks from increased precipitation. This is a known limitation of FloodIQ."
 
 ### 9.4 Addresses Outside the Continental United States
 
@@ -291,7 +303,7 @@ These must appear prominently on the web app and PDF. They are not optional.
 
 ## 13. Versioning
 
-This document is **FloodIQ Methodology v1.1**. Material changes (new sources, changed weights, changed normalization tables) increment the version. Editorial changes (clarifying language, fixing typos) do not.
+This document is **FloodIQ Methodology v1.2**. Material changes (new sources, changed weights, changed normalization tables) increment the version. Editorial changes (clarifying language, fixing typos) do not.
 
 Every PDF generated by FloodIQ embeds the methodology version it was scored under. This protects users from silent methodology drift.
 
@@ -300,6 +312,7 @@ Every PDF generated by FloodIQ embeds the methodology version it was scored unde
 - **v1.0** — Initial methodology. NOAA SLR was a stub returning no data; all properties scored FEMA-only.
 - **v1.1** — NOAA SLR integration completed. Reads NOAA SLR Viewer COGs over HTTP for all CONUS coastal states (FL, SC, LA, TX, MS, AL, GA, NC, VA, MD, DE, NJ, NY, CT, RI, MA, NH, ME, CA, OR, WA). Section 8 amended to skip the disagreement check when the property has no NOAA signal (inland carve-out). 21-cell neighborhood sampling, per-state SLR-amount grid, open-water cell filtering. Seed-set composite scores from v1.0 are invalidated by the version bump and must be regenerated on first query per county.
   - *Amendment (2026-10-03):* Section 6 reference-set rules (one entry per address; implausible fallback matches excluded) and the "typical for this county" display for tie-dominated distributions. Scores, weights and normalization are unchanged, so the version is not incremented and seed sets remain valid.
+- **v1.2** (2026-10-04) — Section 5 FEMA floor: a horizon's composite can't fall below today's FEMA score. Section 6 seed sample: 100 tracts per county in a seeded hash order (replacing the first 25 by GEOID, which clustered geographically), unmapped tracts recorded once, and baselines scoped to the current methodology version. All v1.1 seed sets are invalidated and regenerate on each county's next lookup. v1.1 user scores remain viewable but leave the baselines.
 
 ---
 

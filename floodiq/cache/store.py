@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
+from floodiq import METHODOLOGY_VERSION
+
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parents[2] / "data" / "cache.db"
 
@@ -202,8 +204,8 @@ def composite_scores_in_county(
     out = _composites_from_rows(_reference_rows(rows), horizon_years)
     seed_rows = conn.execute(
         "SELECT composite_absolute FROM county_seed_scores "
-        "WHERE county_fips=? AND horizon_years=?",
-        (county_fips, horizon_years),
+        "WHERE county_fips=? AND horizon_years=? AND methodology_version=?",
+        (county_fips, horizon_years, METHODOLOGY_VERSION),
     ).fetchall()
     out.extend(float(r[0]) for r in seed_rows)
     return out
@@ -220,8 +222,9 @@ def composite_scores_national(
     ).fetchall()
     out = _composites_from_rows(_reference_rows(rows), horizon_years)
     seed_rows = conn.execute(
-        "SELECT composite_absolute FROM county_seed_scores WHERE horizon_years=?",
-        (horizon_years,),
+        "SELECT composite_absolute FROM county_seed_scores "
+        "WHERE horizon_years=? AND methodology_version=?",
+        (horizon_years, METHODOLOGY_VERSION),
     ).fetchall()
     out.extend(float(r[0]) for r in seed_rows)
     return out
@@ -282,6 +285,7 @@ def _reference_rows(rows: list) -> list[tuple[str]]:
     """Filter user score history down to what may enter a baseline
     (Section 6 reference set):
 
+    - only scores from the current methodology version count;
     - each address counts once, at its most recent score, so repeat
       lookups of one property can't skew its county's distribution;
     - approximate (OSM fallback) matches only count when the input would
@@ -300,6 +304,11 @@ def _reference_rows(rows: list) -> list[tuple[str]]:
         except (TypeError, ValueError):
             continue
         if data.get("error"):
+            continue
+        # Composites are only comparable within one methodology version
+        # (e.g. v1.2 added the FEMA floor), so older scores stay in history
+        # but leave the baseline.
+        if data.get("methodology_version") != METHODOLOGY_VERSION:
             continue
         if data.get("geocoder_match_is_approximate") and not looks_like_street_address(
             address_input or ""

@@ -62,11 +62,11 @@ ADDRESS_NOT_FOUND_MESSAGE = (
 # the score. Wording differs based on *why*: outside NOAA coverage entirely
 # vs covered but the modeled SLR doesn't reach this point.
 INLAND_NOTE_OUTSIDE_COVERAGE = (
-    "This property is outside NOAA's v1.1 coastal SLR coverage (currently "
-    "CONUS coastal states only). The 30- and 100-year scores are based on "
-    "FEMA flood zone data alone, which reflects historical patterns and may "
-    "not capture changing flood risks from increased precipitation or "
-    "inland flooding. This is a documented limitation of FloodIQ v1.1."
+    "This property is outside the NOAA sea-level-rise coverage FloodIQ uses "
+    "(continental U.S. coastal states). The 30- and 100-year scores are based "
+    "on FEMA flood zone data alone, which reflects historical patterns and "
+    "may not capture changing flood risks from increased precipitation or "
+    "inland flooding. This is a documented limitation of FloodIQ."
 )
 INLAND_NOTE_COVERED_BUT_DRY = (
     "NOAA's coastal SLR raster covers this address, but its modeled "

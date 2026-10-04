@@ -90,7 +90,7 @@ METHODOLOGY.md    # source of truth — read this before touching scoring logic
 These are documented in METHODOLOGY.md Sections 9 and 12 — read those for the full version:
 
 - **NOAA point-precision tradeoff.** NOAA's raster is sampled in a 21-cell (~63m) neighborhood around the geocoded address. A genuinely-waterfront property whose geocode lands on an elevated building footprint may read as "above SLR threshold" — the report acknowledges this case explicitly.
-- **Inland flooding is not projected forward.** FEMA's flood zones include today's river floodplains, but v1.1 has no inland equivalent of NOAA's sea-level projections. Inland properties are scored on FEMA alone, with a confidence penalty at the 100-year horizon.
+- **Inland flooding is not projected forward.** FEMA's flood zones include today's river floodplains, but FloodIQ has no inland equivalent of NOAA's sea-level projections yet. Inland properties keep their FEMA hazard at every horizon (the Section 5 floor), with a confidence penalty at the 100-year horizon.
 - **Tie-dominated counties.** Where most of a county shares one score, the result reads "typical for this county" with a hazard level instead of a percentile (Section 6).
 - **FEMA map age** is reflected in confidence, not the score itself. Old maps lose tiers.
 - **Rate limits are best-effort** on serverless (per warm instance).
